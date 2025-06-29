@@ -22,7 +22,23 @@ echo "🎯 Claude Code 品質保証システム 環境構築"
 echo "=========================================="
 echo ""
 
-# STEP 1: 既存セッションクリーンアップ
+# STEP 0: 引数チェック（最優先）
+if [ "$1" = "--add-project" ] && [ -n "$2" ]; then
+    # 新しいプロジェクト追加のみ実行
+    log_info "📁 新しいプロジェクト追加モード: $3"
+    
+    # セッション存在確認
+    if ! tmux has-session -t claude-qa-system 2>/dev/null; then
+        echo "❌ エラー: claude-qa-systemセッションが存在しません"
+        echo "まず基本セットアップを実行してください: ./scripts/setup.sh"
+        exit 1
+    fi
+    
+    create_new_project_window "$2" "$3"
+    exit 0
+fi
+
+# STEP 1: 既存セッションクリーンアップ（新規作成時のみ）
 log_info "🧹 既存セッション クリーンアップ開始..."
 
 tmux kill-session -t claude-qa-system 2>/dev/null && log_info "claude-qa-systemセッション削除完了" || log_info "claude-qa-systemセッションは存在しませんでした"
@@ -110,11 +126,7 @@ create_new_project_window() {
     log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
 }
 
-# 引数で追加プロジェクトが指定されている場合
-if [ "$1" = "--add-project" ] && [ -n "$2" ]; then
-    create_new_project_window "$2" "$3"
-    exit 0
-fi
+# この部分は既に上部で処理済み（重複削除）
 
 # STEP 4: 初期化ファイル作成
 log_info "📋 初期化ファイル作成中..."
