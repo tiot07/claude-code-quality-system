@@ -25,8 +25,7 @@ echo ""
 # STEP 1: 既存セッションクリーンアップ
 log_info "🧹 既存セッション クリーンアップ開始..."
 
-tmux kill-session -t quality-manager 2>/dev/null && log_info "quality-managerセッション削除完了" || log_info "quality-managerセッションは存在しませんでした"
-tmux kill-session -t developer 2>/dev/null && log_info "developerセッション削除完了" || log_info "developerセッションは存在しませんでした"
+tmux kill-session -t claude-qa-system 2>/dev/null && log_info "claude-qa-systemセッション削除完了" || log_info "claude-qa-systemセッションは存在しませんでした"
 
 # 作業ファイルクリア
 mkdir -p ./tmp
@@ -39,51 +38,83 @@ mkdir -p ./quality-reports
 log_success "✅ クリーンアップ完了"
 echo ""
 
-# STEP 2: QualityManagerセッション作成
-log_info "🎯 QualityManagerセッション作成開始..."
+# STEP 2: メインセッション作成（プロジェクト1）
+log_info "🎯 メインセッション作成開始（プロジェクト1）..."
 
-# QualityManagerセッション作成
-tmux new-session -d -s quality-manager -n "quality-mgr"
+# メインセッション作成
+tmux new-session -d -s claude-qa-system -n "project-1"
 
-# 作業ディレクトリ設定
-tmux send-keys -t quality-manager "cd $(pwd)" C-m
+# 左右に分割（QualityManager | Developer）
+tmux split-window -h -t claude-qa-system:project-1
 
-# カラープロンプト設定（緑色）
-tmux send-keys -t quality-manager "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+# 左ペイン（QualityManager）設定
+tmux send-keys -t claude-qa-system:project-1.0 "cd $(pwd)" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo '=== QualityManager エージェント ==='" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo '品質管理責任者 - プロジェクト1'" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo '- 要件分析と品質チェックを担当'" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo '- 実装結果の品質保証を実施'" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo '============================'" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo ''" C-m
 
-# ウェルカムメッセージ
-tmux send-keys -t quality-manager "echo '=== QualityManager エージェント ==='" C-m
-tmux send-keys -t quality-manager "echo '品質管理責任者'" C-m
-tmux send-keys -t quality-manager "echo '- 要件分析と品質チェックを担当'" C-m
-tmux send-keys -t quality-manager "echo '- 実装結果の品質保証を実施'" C-m
-tmux send-keys -t quality-manager "echo '============================'" C-m
-tmux send-keys -t quality-manager "echo ''" C-m
+# 右ペイン（Developer）設定
+tmux send-keys -t claude-qa-system:project-1.1 "cd $(pwd)" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo '=== Developer エージェント ==='" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo 'エンジニア - プロジェクト1'" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo '- 高品質な実装を担当'" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo '- テスト駆動開発を実践'" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo '========================='" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo ''" C-m
 
-log_success "✅ QualityManagerセッション作成完了"
+# デフォルトではQualityManagerペインを選択
+tmux select-pane -t claude-qa-system:project-1.0
+
+log_success "✅ メインセッション作成完了（プロジェクト1）"
 echo ""
 
-# STEP 3: Developerセッション作成
-log_info "👨‍💻 Developerセッション作成開始..."
+# STEP 3: 新しいプロジェクト追加機能
+create_new_project_window() {
+    local project_num=$1
+    local project_name=${2:-"project-${project_num}"}
+    
+    log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
+    
+    # 新しいウィンドウを作成
+    tmux new-window -t claude-qa-system -n "${project_name}"
+    
+    # 左右に分割
+    tmux split-window -h -t claude-qa-system:${project_name}
+    
+    # 左ペイン（QualityManager）設定
+    tmux send-keys -t claude-qa-system:${project_name}.0 "cd $(pwd)" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '=== QualityManager エージェント ==='" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name}'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 要件分析と品質チェックを担当'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '============================'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo ''" C-m
+    
+    # 右ペイン（Developer）設定
+    tmux send-keys -t claude-qa-system:${project_name}.1 "cd $(pwd)" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '=== Developer エージェント ==='" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name}'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- 高品質な実装を担当'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '========================='" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo ''" C-m
+    
+    # デフォルトではQualityManagerペインを選択
+    tmux select-pane -t claude-qa-system:${project_name}.0
+    
+    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
+}
 
-# Developerセッション作成
-tmux new-session -d -s developer -n "developer"
-
-# 作業ディレクトリ設定
-tmux send-keys -t developer "cd $(pwd)" C-m
-
-# カラープロンプト設定（青色）
-tmux send-keys -t developer "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-
-# ウェルカムメッセージ
-tmux send-keys -t developer "echo '=== Developer エージェント ==='" C-m
-tmux send-keys -t developer "echo 'エンジニア'" C-m
-tmux send-keys -t developer "echo '- 高品質な実装を担当'" C-m
-tmux send-keys -t developer "echo '- テスト駆動開発を実践'" C-m
-tmux send-keys -t developer "echo '========================='" C-m
-tmux send-keys -t developer "echo ''" C-m
-
-log_success "✅ Developerセッション作成完了"
-echo ""
+# 引数で追加プロジェクトが指定されている場合
+if [ "$1" = "--add-project" ] && [ -n "$2" ]; then
+    create_new_project_window "$2" "$3"
+    exit 0
+fi
 
 # STEP 4: 初期化ファイル作成
 log_info "📋 初期化ファイル作成中..."
@@ -141,8 +172,11 @@ echo "📊 セットアップ結果:"
 echo "==================="
 
 # tmuxセッション確認
-echo "📺 Tmux Sessions:"
-tmux list-sessions | grep -E "(quality-manager|developer)"
+echo "📺 Tmux Session:"
+tmux list-sessions | grep claude-qa-system
+echo ""
+echo "📺 Tmux Windows:"
+tmux list-windows -t claude-qa-system
 echo ""
 
 # ディレクトリ構成表示
@@ -161,13 +195,18 @@ echo ""
 
 # エージェント構成表示
 echo "🤖 エージェント構成:"
-echo "  quality-manager セッション:"
-echo "    - 品質管理責任者"
-echo "    - 要件分析と品質チェック担当"
+echo "  claude-qa-system セッション:"
+echo "    ┌─────────────────┬─────────────────┐"
+echo "    │ QualityManager  │ Developer       │"
+echo "    │ (左ペイン)      │ (右ペイン)      │"
+echo "    │ 品質管理責任者  │ エンジニア      │"
+echo "    └─────────────────┴─────────────────┘"
 echo ""
-echo "  developer セッション:"
-echo "    - エンジニア"
-echo "    - 実装とテスト担当"
+echo "  操作方法:"
+echo "    Ctrl+B → O     : ペイン切り替え"
+echo "    Ctrl+B → N     : 次のウィンドウ"
+echo "    Ctrl+B → P     : 前のウィンドウ"
+echo "    Ctrl+B → 数字  : 指定ウィンドウへ移動"
 echo ""
 
 echo "📋 プロジェクト設定:"
@@ -182,15 +221,20 @@ echo ""
 echo "📋 次のステップ:"
 echo "================"
 echo ""
-echo "  1. 🔗 セッション確認:"
-echo "     tmux attach-session -t quality-manager  # 品質管理者画面"
-echo "     tmux attach-session -t developer        # 開発者画面"
+echo "  1. 🔗 セッション接続:"
+echo "     tmux attach-session -t claude-qa-system"
 echo ""
 echo "  2. 🤖 Claude Code起動:"
-echo "     # QualityManager起動"
-echo "     tmux send-keys -t quality-manager 'claude --dangerously-skip-permissions' C-m"
-echo "     # Developer起動"  
-echo "     tmux send-keys -t developer 'claude --dangerously-skip-permissions' C-m"
+echo "     # 左ペイン（QualityManager）でClaude Code起動:"
+echo "     claude --dangerously-skip-permissions"
+echo ""
+echo "     # 右ペイン（Developer）に移動してClaude Code起動:"
+echo "     # Ctrl+B → O で右ペインに移動"
+echo "     claude --dangerously-skip-permissions"
+echo ""
+echo "  3. 📁 追加プロジェクト作成:"
+echo "     ./scripts/setup.sh --add-project 2 webapp"
+echo "     ./scripts/setup.sh --add-project 3 api-service"
 echo ""
 echo "  3. 📜 指示書確認:"
 echo "     QualityManager: agents/quality-manager.md"
@@ -198,8 +242,11 @@ echo "     Developer: agents/developer.md"
 echo "     システム構造: CLAUDE.md（作成予定）"
 echo ""
 echo "  4. 🚀 システム開始:"
-echo "     QualityManagerに以下のメッセージを送信:"
+echo "     左ペイン（QualityManager）に以下のメッセージを送信:"
 echo "     「あなたはquality-managerです。指示書に従って要件を受け付けてください。」"
+echo ""
+echo "     右ペイン（Developer）に以下のメッセージを送信:"
+echo "     「あなたはdeveloperです。指示書に従って実装作業を行ってください。」"
 echo ""
 echo "  5. 📊 状態確認:"
 echo "     ./scripts/system-status.sh  # システム状態確認（作成予定）"
@@ -217,8 +264,18 @@ echo ""
 echo "🔧 トラブルシューティング:"
 echo "======================"
 echo "- セッション確認: tmux ls"
+echo "- ウィンドウ確認: tmux list-windows -t claude-qa-system"  
+echo "- ペイン確認: tmux list-panes -t claude-qa-system"
 echo "- ログ確認: tail -f logs/send_log.txt"
 echo "- リセット: ./scripts/setup.sh（再実行）"
+echo ""
+echo "🚀 tmux操作ガイド:"
+echo "=================="
+echo "- セッション接続: tmux attach -t claude-qa-system"
+echo "- ペイン切り替え: Ctrl+B → O"
+echo "- ウィンドウ切り替え: Ctrl+B → N (次) / P (前)"
+echo "- ウィンドウ番号移動: Ctrl+B → 0,1,2..."
+echo "- セッション終了: Ctrl+B → D (デタッチ)"
 echo ""
 
 echo "🎯 品質保証システムの準備が完了しました！"

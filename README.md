@@ -29,28 +29,35 @@ cd claude-code-quality-system
 ./scripts/setup.sh
 ```
 
-### 2. エージェント起動（3分）
+### 2. エージェント起動（2分）
 
 ```bash
-# QualityManager起動
-tmux attach-session -t quality-manager
+# メインセッションに接続
+tmux attach-session -t claude-qa-system
+
+# 左ペイン（QualityManager）でClaude Code起動
 claude --dangerously-skip-permissions
 
-# Developer起動（新しいターミナルで）
-tmux attach-session -t developer
+# 右ペインに移動（Ctrl+B → O）してClaude Code起動
+# Ctrl+B → O
 claude --dangerously-skip-permissions
 ```
 
 ### 3. システム開始（1分）
 
-QualityManagerに送信:
+**左ペイン（QualityManager）**に送信:
 ```
 あなたはquality-managerです。指示書に従って要件を受け付けてください。
 ```
 
+**右ペイン（Developer）**に送信:
+```
+あなたはdeveloperです。指示書に従って実装作業を行ってください。
+```
+
 ### 4. プロジェクト実行
 
-QualityManagerに要件を伝える:
+**左ペイン（QualityManager）**に要件を伝える:
 ```
 TODOアプリを作成してください。
 - タスクの追加・削除・完了機能
@@ -60,117 +67,126 @@ TODOアプリを作成してください。
 
 ### 5. 複数プロジェクト同時実行（上級者向け）
 
-⚠️ **重要**: 環境構築（手順1-3）は一度だけ実行すれば十分です。複数プロジェクトでも同じtmuxセッションを共有します。
+⚠️ **重要**: 環境構築（手順1-3）は一度だけ実行すれば十分です。複数プロジェクトは新しいtmuxウィンドウで管理します。
 
 #### 前提条件
 1. 基本環境構築が完了していること（手順1-3）
-2. QualityManagerとDeveloperのtmuxセッションが起動していること
+2. `claude-qa-system` tmuxセッションが起動していること
 
 #### 複数プロジェクト実行手順
 
-**ステップ1: 新しいターミナルで並列実行開始**
+**ステップ1: 新しいプロジェクトウィンドウを追加**
 ```bash
-# 新しいターミナルウィンドウを開く
-# システムディレクトリに移動
+# 新しいターミナルを開く
 cd claude-code-quality-system
 
-# プロジェクト1を開始（バックグラウンド実行）
-echo "webapp_$(date +%Y%m%d_%H%M%S)" > workspace/current_project_id.txt
-./scripts/feedback-loop.sh --auto-run &
-PROJECT1_PID=$!
+# プロジェクト2（WebApp）を追加
+./scripts/setup.sh --add-project 2 webapp
 
-# プロジェクト2を開始（バックグラウンド実行）
-echo "api_$(date +%Y%m%d_%H%M%S)" > workspace/current_project_id.txt  
-./scripts/feedback-loop.sh --auto-run &
-PROJECT2_PID=$!
+# プロジェクト3（API）を追加  
+./scripts/setup.sh --add-project 3 api-service
 
-# プロジェクト3を開始（バックグラウンド実行）
-echo "mobile_$(date +%Y%m%d_%H%M%S)" > workspace/current_project_id.txt
-./scripts/feedback-loop.sh --auto-run &
-PROJECT3_PID=$!
+# プロジェクト4（Mobile）を追加
+./scripts/setup.sh --add-project 4 mobile-app
 ```
 
-**ステップ2: 実行状況監視**
+**ステップ2: tmuxセッションに再接続してClaude Code起動**
 ```bash
-# プロセス一覧確認
-echo "実行中のプロジェクト:"
-echo "プロジェクト1 (WebApp): PID $PROJECT1_PID"
-echo "プロジェクト2 (API): PID $PROJECT2_PID"  
-echo "プロジェクト3 (Mobile): PID $PROJECT3_PID"
+# メインセッションに接続
+tmux attach-session -t claude-qa-system
 
-# バックグラウンドジョブ確認
-jobs
+# ウィンドウ一覧確認（各プロジェクトが表示される）
+# Ctrl+B → w でウィンドウ一覧表示
 
-# システム全体の状況確認
-./scripts/agent-send.sh --status
+# 各ウィンドウに移動してClaude Code起動
+# Ctrl+B → 2 (webapp ウィンドウ)
+# 左ペイン: claude --dangerously-skip-permissions
+# 右ペイン: claude --dangerously-skip-permissions
+
+# Ctrl+B → 3 (api-service ウィンドウ)  
+# 左ペイン: claude --dangerously-skip-permissions
+# 右ペイン: claude --dangerously-skip-permissions
+
+# Ctrl+B → 4 (mobile-app ウィンドウ)
+# 左ペイン: claude --dangerously-skip-permissions
+# 右ペイン: claude --dangerously-skip-permissions
 ```
 
 **ステップ3: 各プロジェクトに要件を送信**
 ```bash
-# 各プロジェクトIDを取得して要件を送信
-# プロジェクト1: Webアプリ
-echo "webapp_20241201_140000" > workspace/current_project_id.txt
-./scripts/agent-send.sh quality-manager "
+# プロジェクト1（project-1ウィンドウ）: TODOアプリ
+# Ctrl+B → 1 で移動
+# 左ペイン（QualityManager）に送信:
+"""
+TODOアプリを作成してください。
+- タスクの追加・削除・完了機能
+- レスポンシブデザイン  
+- ローカルストレージ対応
+"""
+
+# プロジェクト2（webappウィンドウ）: ECサイト
+# Ctrl+B → 2 で移動
+# 左ペイン（QualityManager）に送信:
+"""
 ECサイトの商品検索機能を作成してください。
 - Elasticsearch連携
-- オートコンプリート機能  
+- オートコンプリート機能
 - 検索履歴保存
 - レスポンス時間1秒以内
-"
+"""
 
-# プロジェクト2: API
-echo "api_20241201_140100" > workspace/current_project_id.txt
-./scripts/agent-send.sh quality-manager "
+# プロジェクト3（api-serviceウィンドウ）: API
+# Ctrl+B → 3 で移動
+# 左ペイン（QualityManager）に送信:
+"""
 ユーザー管理APIを作成してください。
 - JWT認証
 - CRUD操作
 - バリデーション
 - OpenAPI仕様書
-"
-
-# プロジェクト3: モバイルアプリ
-echo "mobile_20241201_140200" > workspace/current_project_id.txt
-./scripts/agent-send.sh quality-manager "
-TODOアプリを作成してください。
-- タスク追加・削除・完了
-- オフライン対応
-- プッシュ通知
-"
+"""
 ```
 
 #### セッション管理の詳細
 
-**tmuxセッション構成（変更不要）:**
+**tmuxセッション構成:**
 ```bash
-# 既存のセッションを確認
+# セッション確認
 tmux ls
+# 出力例: claude-qa-system: 4 windows (created Mon Dec  1 14:00:00 2024)
 
+# ウィンドウ一覧確認
+tmux list-windows -t claude-qa-system
 # 出力例:
-# developer: 1 windows (created Mon Dec  1 14:00:00 2024)
-# quality-manager: 1 windows (created Mon Dec  1 14:00:00 2024)
+# 1: project-1* (2 panes) [160x40] [layout ee62,160x40,0,0{80x40,0,0,1,79x40,81,0,2}]
+# 2: webapp- (2 panes) [160x40] [layout ee62,160x40,0,0{80x40,0,0,3,79x40,81,0,4}]
+# 3: api-service- (2 panes) [160x40] [layout ee62,160x40,0,0{80x40,0,0,5,79x40,81,0,6}]
+# 4: mobile-app- (2 panes) [160x40] [layout ee62,160x40,0,0{80x40,0,0,7,79x40,81,0,8}]
 ```
 
-**各セッションの役割:**
-- `quality-manager`: 要件分析、品質チェック、修正指示
-- `developer`: 実装、テスト、修正対応
-- **メインターミナル**: 並列実行管理、プロジェクト切り替え
+**各ウィンドウの構成:**
+```
+┌─────────────────┬─────────────────┐
+│ QualityManager  │ Developer       │
+│ (左ペイン)      │ (右ペイン)      │
+│ 品質管理責任者  │ エンジニア      │
+└─────────────────┴─────────────────┘
+```
 
-#### プロジェクト管理コマンド
+#### tmux操作ガイド
 ```bash
-# 現在のプロジェクトID確認
-cat workspace/current_project_id.txt
+# 基本操作
+tmux attach -t claude-qa-system           # セッション接続
+Ctrl+B → O                               # ペイン切り替え (QualityManager ⇔ Developer)
+Ctrl+B → N                               # 次のウィンドウ
+Ctrl+B → P                               # 前のウィンドウ  
+Ctrl+B → 1,2,3,4...                      # 指定ウィンドウへ移動
+Ctrl+B → W                               # ウィンドウ一覧表示
+Ctrl+B → D                               # セッションからデタッチ
 
-# 特定プロジェクトの状況確認
-./scripts/quality-check.sh webapp_20241201_140000
-
-# 特定プロジェクトの作業ディレクトリ確認
-ls -la workspace/webapp_20241201_140000/
-
-# 実行中プロセスの停止
-kill $PROJECT1_PID $PROJECT2_PID $PROJECT3_PID
-
-# 全プロジェクトの停止
-pkill -f "feedback-loop.sh"
+# ウィンドウ管理
+./scripts/setup.sh --add-project 5 new-project  # 新しいプロジェクトウィンドウ追加
+tmux kill-window -t claude-qa-system:5          # 指定ウィンドウ削除
 ```
 
 #### 監視とログ
@@ -188,9 +204,9 @@ cat quality-reports/webapp_20241201_140000_summary.txt
 **並列実行の利点:**
 - 開発効率75%向上
 - 複数要件の同時処理
-- リソース有効活用
+- 1つのtmuxセッションで全プロジェクト管理
+- ウィンドウ切り替えによる効率的なプロジェクト監視
 - スケーラブルな開発体制
-- 1つの環境で複数プロジェクト管理
 
 ## システム構成
 
