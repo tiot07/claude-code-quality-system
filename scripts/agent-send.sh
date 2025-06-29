@@ -44,12 +44,46 @@ get_target_agent() {
     esac
 }
 
-# プロジェクトIDの取得
+# プロジェクトIDの取得（競合状態を考慮）
 get_current_project_id() {
-    if [ -f workspace/current_project_id.txt ]; then
-        cat workspace/current_project_id.txt | tr -d '\n\r'
-    else
+    local id_file="workspace/current_project_id.txt"
+    
+    if [ ! -f "$id_file" ]; then
         echo ""
+        return 1
+    fi
+    
+    # ファイルロックを使用した安全な読み込み
+    if command -v flock &> /dev/null; then
+        # flockが利用可能な場合
+        (
+            flock -s 200
+            cat "$id_file" 2>/dev/null | tr -d '\n\r'
+        ) 200>"${id_file}.lock"
+    else
+        # flockが利用できない場合
+        # 複数回試行して最新の値を取得
+        local attempt=0
+        local max_attempts=3
+        local value1=""
+        local value2=""
+        
+        while [ $attempt -lt $max_attempts ]; do
+            value1=$(cat "$id_file" 2>/dev/null | tr -d '\n\r')
+            sleep 0.01
+            value2=$(cat "$id_file" 2>/dev/null | tr -d '\n\r')
+            
+            # 2回の読み込みが一致すれば信頼できる
+            if [ "$value1" = "$value2" ]; then
+                echo "$value1"
+                return 0
+            fi
+            
+            attempt=$((attempt + 1))
+        done
+        
+        # 最後の読み込み値を返す
+        echo "$value2"
     fi
 }
 
@@ -63,12 +97,31 @@ get_project_window_mapping() {
     fi
     
     # プロジェクトIDに基づく専用ウィンドウマッピング
-    # 規則: プロジェクトIDのハッシュ値で決定的にウィンドウを割り当て
-    local hash_suffix=$(echo "$project_id" | tail -c 2)
-    case "$hash_suffix" in
-        "49"|"58"|*"9"|*"8") echo "project-1" ;;
-        *) echo "project-2" ;;
-    esac
+    # より信頼性の高いハッシュ計算（MD5ハッシュの最初の8文字を使用）
+    local hash_value
+    if command -v md5sum &> /dev/null; then
+        # Linux
+        hash_value=$(echo -n "$project_id" | md5sum | cut -c1-8)
+    elif command -v md5 &> /dev/null; then
+        # macOS
+        hash_value=$(echo -n "$project_id" | md5 | cut -c1-8)
+    else
+        # フォールバック：文字列の長さとチェックサムを使用
+        hash_value=$(echo -n "$project_id" | cksum | cut -d' ' -f1)
+    fi
+    
+    # ハッシュ値を数値に変換して、利用可能なウィンドウ数で割った余りを使用
+    local hash_num=$(echo "$hash_value" | tr -d 'a-f' | cut -c1-6)
+    if [ -z "$hash_num" ]; then
+        hash_num=0
+    fi
+    
+    # project-1 か project-2 に決定的に割り当て
+    if [ $((hash_num % 2)) -eq 0 ]; then
+        echo "project-1"
+    else
+        echo "project-2"
+    fi
 }
 
 # エージェント→tmuxターゲット マッピング
@@ -266,7 +319,7 @@ show_status() {
     fi
 }
 
-# ログ記録（ウィンドウ別に分離）
+# ログ記録（ウィンドウ別に分離・ファイルロック付き）
 log_send() {
     local agent="$1"
     local message="$2"
@@ -275,16 +328,49 @@ log_send() {
     
     mkdir -p logs
     
+    # ファイルロックを使用した安全な書き込み
+    write_log_safely() {
+        local log_file="$1"
+        local log_content="$2"
+        
+        if command -v flock &> /dev/null; then
+            # flockが利用可能な場合（Linux）
+            (
+                flock -x 200
+                echo "$log_content" >> "$log_file"
+            ) 200>"${log_file}.lock"
+        else
+            # flockが利用できない場合（macOS等）
+            # 簡易的なロック機構
+            local lock_file="${log_file}.lock"
+            local max_wait=5
+            local waited=0
+            
+            # ロック取得を試みる
+            while [ -f "$lock_file" ] && [ $waited -lt $max_wait ]; do
+                sleep 0.1
+                waited=$((waited + 1))
+            done
+            
+            # ロック作成
+            echo $$ > "$lock_file"
+            echo "$log_content" >> "$log_file"
+            rm -f "$lock_file"
+        fi
+    }
+    
     # ウィンドウ別ログファイル
     if [ -n "$current_window" ]; then
-        echo "[$timestamp] $agent: SENT - \"$message\"" >> "logs/send_log_${current_window}.txt"
+        write_log_safely "logs/send_log_${current_window}.txt" "[$timestamp] $agent: SENT - \"$message\""
     fi
     
     # 統合ログファイル（全ウィンドウ共通）
-    echo "[$timestamp] [$current_window] $agent: SENT - \"$message\"" >> logs/send_log_all.txt
+    write_log_safely "logs/send_log_all.txt" "[$timestamp] [$current_window] $agent: SENT - \"$message\""
     
-    # システム統計更新
-    echo $timestamp > tmp/last_message_time.txt
+    # システム統計更新（アトミックな操作）
+    mkdir -p tmp
+    echo "$timestamp" > "tmp/last_message_time.$$.tmp"
+    mv -f "tmp/last_message_time.$$.tmp" "tmp/last_message_time.txt"
 }
 
 # 人間への出力（特別処理）
@@ -359,12 +445,54 @@ broadcast_message() {
     echo "[$timestamp] [$current_window] BROADCAST: $message" >> logs/broadcast_log_all.txt
 }
 
-# メッセージ送信（プロジェクトID検証ヘッダー付き）
+# メッセージ送信（プロジェクトID検証ヘッダー付き・排他制御）
 send_message() {
     local target="$1"
     local message="$2"
     local current_window=$(get_current_window)
     local project_id=$(get_current_project_id)
+    
+    # tmuxペインのロックファイル（ターゲット別）
+    local pane_lock="tmp/tmux_pane_$(echo "$target" | tr ':.' '_').lock"
+    mkdir -p tmp
+    
+    # 排他制御：同じペインへの同時送信を防ぐ
+    acquire_tmux_lock() {
+        local lock_file="$1"
+        local max_wait=10  # 最大10秒待機
+        local waited=0
+        
+        while [ -f "$lock_file" ]; do
+            # 古いロックファイルをチェック（10秒以上前なら削除）
+            if [ -f "$lock_file" ]; then
+                local lock_age=$(($(date +%s) - $(stat -f%m "$lock_file" 2>/dev/null || stat -c%Y "$lock_file" 2>/dev/null || echo 0)))
+                if [ $lock_age -gt 10 ]; then
+                    echo "⚠️  古いロックファイルを削除: $lock_file"
+                    rm -f "$lock_file"
+                    break
+                fi
+            fi
+            
+            if [ $waited -ge $max_wait ]; then
+                echo "❌ タイムアウト: tmuxペインのロック取得に失敗"
+                return 1
+            fi
+            
+            echo "⏳ 他のプロセスの送信完了を待機中... ($waited秒)"
+            sleep 1
+            waited=$((waited + 1))
+        done
+        
+        # ロック取得
+        echo $$ > "$lock_file"
+        return 0
+    }
+    
+    # ロック取得を試みる
+    if ! acquire_tmux_lock "$pane_lock"; then
+        echo "❌ メッセージ送信をキャンセルしました"
+        return 1
+    fi
     
     # プロジェクトID検証ヘッダーとガードレール機能を付加
     local enhanced_message=""
@@ -405,17 +533,37 @@ $message
     
     echo "📤 送信中: $target (プロジェクト: $project_id) ← メッセージ"
     
-    # Claude Codeのプロンプトを一度クリア
-    tmux send-keys -t "$target" C-c
-    sleep 0.3
+    # エラーハンドリングを強化したtmux送信
+    {
+        # Claude Codeのプロンプトを一度クリア
+        tmux send-keys -t "$target" C-c 2>/dev/null || {
+            echo "❌ エラー: tmuxペインにアクセスできません: $target"
+            rm -f "$pane_lock"
+            return 1
+        }
+        sleep 0.3
+        
+        # 検証ヘッダー付きメッセージ送信
+        tmux send-keys -t "$target" "$enhanced_message" 2>/dev/null || {
+            echo "❌ エラー: メッセージ送信に失敗しました"
+            rm -f "$pane_lock"
+            return 1
+        }
+        sleep 0.1
+        
+        # エンター押下
+        tmux send-keys -t "$target" C-m 2>/dev/null || {
+            echo "❌ エラー: エンター送信に失敗しました"
+            rm -f "$pane_lock"
+            return 1
+        }
+        sleep 0.5
+    }
     
-    # 検証ヘッダー付きメッセージ送信
-    tmux send-keys -t "$target" "$enhanced_message"
-    sleep 0.1
+    # ロック解放
+    rm -f "$pane_lock"
     
-    # エンター押下
-    tmux send-keys -t "$target" C-m
-    sleep 0.5
+    return 0
 }
 
 # ターゲット存在確認（ウィンドウとペインの両方を検証）
