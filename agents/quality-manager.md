@@ -233,7 +233,7 @@ npm start
 ### 1. アプリケーション起動確認
 ```bash
 # プロジェクトディレクトリに移動
-cd workspace/$(cat workspace/current_project_id.txt)
+cd workspace/$(./scripts/get-project-id.sh)
 
 # 依存関係の確認・インストール
 if [ -f package.json ]; then
@@ -282,10 +282,10 @@ fi
 ### 2. 基本機能動作テスト
 ```bash
 # 基本機能動作テストスクリプト実行
-cat > workspace/$(cat workspace/current_project_id.txt)/functional_test.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/functional_test.sh << 'EOF'
 #!/bin/bash
 
-PROJECT_ID=$(cat workspace/current_project_id.txt)
+PROJECT_ID=$(./scripts/get-project-id.sh)
 echo "🧪 基本機能動作テスト開始: $PROJECT_ID"
 
 # アプリケーションタイプ判定
@@ -330,14 +330,14 @@ fi
 echo "✅ 基本機能動作テスト完了"
 EOF
 
-chmod +x workspace/$(cat workspace/current_project_id.txt)/functional_test.sh
-./workspace/$(cat workspace/current_project_id.txt)/functional_test.sh
+chmod +x workspace/$(./scripts/get-project-id.sh)/functional_test.sh
+./workspace/$(./scripts/get-project-id.sh)/functional_test.sh
 ```
 
 ### 3. UI/UX動作確認テスト
 ```bash
 # UI動作確認（手動確認指示）
-cat > workspace/$(cat workspace/current_project_id.txt)/ui_test_checklist.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/ui_test_checklist.md << 'EOF'
 # UI/UX動作確認チェックリスト
 
 ## 必須確認項目
@@ -483,7 +483,7 @@ else
 4. ボタンクリックでエラーが出ないか
 
 ## 詳細レポート
-workspace/$(cat workspace/current_project_id.txt)/functional_test_report.md
+workspace/$(./scripts/get-project-id.sh)/functional_test_report.md
 
 基本的な動作ができるまで修正してください。
 修正完了後、再度完了報告をお願いします。"
@@ -499,11 +499,11 @@ echo "✅ 実動作テスト合格 - 詳細品質チェックを続行します"
 ### 6. 手動UI確認指示
 ```bash
 # 手動確認チェックリスト作成
-cp templates/functional-test-checklist.md workspace/$(cat workspace/current_project_id.txt)/
+cp templates/functional-test-checklist.md workspace/$(./scripts/get-project-id.sh)/
 
 echo "📋 手動UI確認を実施してください:"
 echo "1. ブラウザで http://localhost:3000 を開く"
-echo "2. workspace/$(cat workspace/current_project_id.txt)/functional-test-checklist.md に従って確認"
+echo "2. workspace/$(./scripts/get-project-id.sh)/functional-test-checklist.md に従って確認"
 echo "3. 問題があれば即座に修正指示を送信"
 echo ""
 echo "⚠️ 重要: 実際にブラウザでアプリケーションを操作し、"
@@ -515,7 +515,7 @@ echo "   ボタンクリック・フォーム入力・エラー表示を確認�
 # 実動作確認が合格した場合のみ、従来の品質チェックも実行
 if [ "$FUNCTIONAL_TEST_RESULT" = "PASS" ]; then
     echo "🔍 詳細品質チェック実行中..."
-    ./scripts/quality-check.sh $(cat workspace/current_project_id.txt)
+    ./scripts/quality-check.sh $(./scripts/get-project-id.sh)
     
     # チェック内容:
     # 1. ✅ 実動作確認（最優先・既に合格）
@@ -581,7 +581,7 @@ fi
 ./scripts/agent-send.sh human "【TDD品質保証完了】🎉
 
 ## プロジェクト概要
-- プロジェクトID: $(cat workspace/current_project_id.txt)
+- プロジェクトID: $(./scripts/get-project-id.sh)
 - 完了時刻: $(date '+%Y/%m/%d %H:%M:%S')
 - 開発期間: [開始時刻から計算]
 
@@ -598,8 +598,8 @@ fi
 ✅ 技術要件: [Z]% (目標90%以上達成)
 
 ## 成果物
-- ソースコード: workspace/$(cat workspace/current_project_id.txt)/src/
-- テストコード: workspace/$(cat workspace/current_project_id.txt)/tests/
+- ソースコード: workspace/$(./scripts/get-project-id.sh)/src/
+- テストコード: workspace/$(./scripts/get-project-id.sh)/tests/
 - TDD実施証跡: logs/tdd_cycles.log
 - カバレッジレポート: coverage/lcov-report/
 
@@ -685,12 +685,12 @@ t-wada推奨のTDDプロトコルを完全遵守し、テスト駆動による�
 ### 修正サイクル管理
 ```bash
 # 修正回数カウンター
-REVISION_COUNT=$(cat workspace/$(cat workspace/current_project_id.txt)/revision_count.txt 2>/dev/null || echo "0")
+REVISION_COUNT=$(cat workspace/$(./scripts/get-project-id.sh)/revision_count.txt 2>/dev/null || echo "0")
 REVISION_COUNT=$((REVISION_COUNT + 1))
-echo $REVISION_COUNT > workspace/$(cat workspace/current_project_id.txt)/revision_count.txt
+echo $REVISION_COUNT > workspace/$(./scripts/get-project-id.sh)/revision_count.txt
 
 # 品質向上履歴の記録
-cat >> quality-reports/$(cat workspace/current_project_id.txt)_history.log << EOF
+cat >> quality-reports/$(./scripts/get-project-id.sh)_history.log << EOF
 [$(date '+%Y-%m-%d %H:%M:%S')] Revision $REVISION_COUNT
 Issues: [問題の概要]
 Fixes: [修正内容]

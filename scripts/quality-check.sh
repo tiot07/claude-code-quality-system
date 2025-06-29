@@ -50,14 +50,10 @@ show_usage() {
 EOF
 }
 
-# プロジェクトID取得
+# プロジェクトID取得（統一された方式）
 get_project_id() {
     if [[ "$1" == "--current" ]]; then
-        if [[ -f workspace/current_project_id.txt ]]; then
-            cat workspace/current_project_id.txt
-        else
-            echo ""
-        fi
+        ./scripts/get-project-id.sh
     else
         echo "$1"
     fi

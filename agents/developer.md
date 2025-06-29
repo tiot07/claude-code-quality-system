@@ -90,7 +90,7 @@ npm test  # リファクタリング後もテストが通ることを確認
 # QualityManagerに作業開始を報告
 ./scripts/agent-send.sh quality-manager "【実装開始】
 
-プロジェクトID: $(cat workspace/current_project_id.txt)
+プロジェクトID: $(./scripts/get-project-id.sh)
 開始時刻: $(date '+%Y/%m/%d %H:%M:%S')
 
 ## 受領した要件
@@ -110,7 +110,7 @@ npm test  # リファクタリング後もテストが通ることを確認
 ### 2. 要件理解チェック
 ```bash
 # 要件確認チェックリスト作成
-cat > workspace/$(cat workspace/current_project_id.txt)/requirements_checklist.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/requirements_checklist.md << 'EOF'
 # 要件理解チェックリスト
 
 ## 機能要件
@@ -137,7 +137,7 @@ EOF
 ### 3. 不明点の即座質問
 ```bash
 # 不明点がある場合の質問テンプレート
-if [ -s workspace/$(cat workspace/current_project_id.txt)/unclear_points.txt ]; then
+if [ -s workspace/$(./scripts/get-project-id.sh)/unclear_points.txt ]; then
     ./scripts/agent-send.sh quality-manager "【要件確認】❓
 
 以下の点について明確化をお願いします：
@@ -168,7 +168,7 @@ fi
 ### 1. テストケース設計（TDDファースト）
 ```bash
 # TDDテストケース設計書作成
-cat > workspace/$(cat workspace/current_project_id.txt)/tdd_test_plan.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/tdd_test_plan.md << 'EOF'
 # TDD Test Plan
 
 ## 🔴 Red Phase: 失敗するテストケース
@@ -221,7 +221,7 @@ EOF
 ### 2. タスク分解と優先度設定（TDD順序）
 ```bash
 # 実装計画作成
-cat > workspace/$(cat workspace/current_project_id.txt)/implementation_plan.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/implementation_plan.md << 'EOF'
 # 実装計画
 
 ## 全体タスクリスト
@@ -255,7 +255,7 @@ EOF
 ### 2. 技術選定と設計判断
 ```bash
 # 技術選定理由の記録
-cat > workspace/$(cat workspace/current_project_id.txt)/technical_decisions.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/technical_decisions.md << 'EOF'
 # 技術選定と設計判断
 
 ## フレームワーク/ライブラリ選定
@@ -291,7 +291,7 @@ EOF
 ### 1. コーディング規約の遵守
 ```bash
 # コード品質チェックの自動化
-cat > workspace/$(cat workspace/current_project_id.txt)/quality_commands.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/quality_commands.sh << 'EOF'
 #!/bin/bash
 
 echo "=== コード品質チェック開始 ==="
@@ -323,7 +323,7 @@ npm run test:coverage || echo "⚠️ カバレッジ測定失敗"
 echo "=== コード品質チェック完了 ==="
 EOF
 
-chmod +x workspace/$(cat workspace/current_project_id.txt)/quality_commands.sh
+chmod +x workspace/$(./scripts/get-project-id.sh)/quality_commands.sh
 ```
 
 ### 2. セキュリティファーストの実装
@@ -360,7 +360,7 @@ const verifyToken = (token) => {
 ### 3. パフォーマンス最適化の実装
 ```bash
 # パフォーマンス測定スクリプト
-cat > workspace/$(cat workspace/current_project_id.txt)/performance_test.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/performance_test.sh << 'EOF'
 #!/bin/bash
 
 echo "=== パフォーマンステスト開始 ==="
@@ -385,7 +385,7 @@ echo "=== パフォーマンステスト完了 ==="
 EOF
 
 # curl-format.txt作成
-cat > workspace/$(cat workspace/current_project_id.txt)/curl-format.txt << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/curl-format.txt << 'EOF'
      time_namelookup:  %{time_namelookup}\n
         time_connect:  %{time_connect}\n
      time_appconnect:  %{time_appconnect}\n
@@ -402,7 +402,7 @@ EOF
 ### 1. テスト計画の作成
 ```bash
 # テスト計画書作成
-cat > workspace/$(cat workspace/current_project_id.txt)/test_plan.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/test_plan.md << 'EOF'
 # テスト計画
 
 ## テスト戦略
@@ -441,7 +441,7 @@ EOF
 ### 2. 自動化されたテスト実行
 ```bash
 # テスト自動実行スクリプト
-cat > workspace/$(cat workspace/current_project_id.txt)/run_all_tests.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/run_all_tests.sh << 'EOF'
 #!/bin/bash
 
 echo "🚀 全テスト実行開始"
@@ -496,7 +496,7 @@ else
 fi
 EOF
 
-chmod +x workspace/$(cat workspace/current_project_id.txt)/run_all_tests.sh
+chmod +x workspace/$(./scripts/get-project-id.sh)/run_all_tests.sh
 ```
 
 ## Phase 5: 完了報告の実践
@@ -504,7 +504,7 @@ chmod +x workspace/$(cat workspace/current_project_id.txt)/run_all_tests.sh
 ### 1. TDD完了確認
 ```bash
 # TDD完了チェックリスト
-cat > workspace/$(cat workspace/current_project_id.txt)/tdd_completion_check.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/tdd_completion_check.md << 'EOF'
 # TDD完了チェックリスト
 
 ## 🔴 Red Phase 確認
@@ -534,7 +534,7 @@ EOF
 ### 2. 成果物の整理
 ```bash
 # 成果物チェックリスト作成
-cat > workspace/$(cat workspace/current_project_id.txt)/deliverables_checklist.md << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/deliverables_checklist.md << 'EOF'
 # 成果物チェックリスト
 
 ## ソースコード
@@ -565,10 +565,10 @@ EOF
 ### 3. TDD完了報告テンプレート
 ```bash
 # TDD完了報告の自動生成
-cat > workspace/$(cat workspace/current_project_id.txt)/generate_completion_report.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/generate_completion_report.sh << 'EOF'
 #!/bin/bash
 
-PROJECT_ID=$(cat workspace/current_project_id.txt)
+PROJECT_ID=$(./scripts/get-project-id.sh)
 COMPLETION_TIME=$(date '+%Y/%m/%d %H:%M:%S')
 
 # TDD実行結果の取得
@@ -672,7 +672,7 @@ npm start
 品質チェックをお願いします。"
 EOF
 
-chmod +x workspace/$(cat workspace/current_project_id.txt)/generate_completion_report.sh
+chmod +x workspace/$(./scripts/get-project-id.sh)/generate_completion_report.sh
 ```
 
 ## Phase 6: 修正対応の実践
@@ -680,7 +680,7 @@ chmod +x workspace/$(cat workspace/current_project_id.txt)/generate_completion_r
 ### 1. 修正指示への迅速対応
 ```bash
 # 修正作業の効率化
-cat > workspace/$(cat workspace/current_project_id.txt)/handle_revision.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/handle_revision.sh << 'EOF'
 #!/bin/bash
 
 echo "🔧 修正作業開始"
@@ -704,13 +704,13 @@ echo "✅ 修正作業準備完了"
 echo "修正完了後は ./complete_revision.sh を実行してください"
 EOF
 
-chmod +x workspace/$(cat workspace/current_project_id.txt)/handle_revision.sh
+chmod +x workspace/$(./scripts/get-project-id.sh)/handle_revision.sh
 ```
 
 ### 2. 修正完了報告
 ```bash
 # 修正完了報告の自動化
-cat > workspace/$(cat workspace/current_project_id.txt)/complete_revision.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/complete_revision.sh << 'EOF'
 #!/bin/bash
 
 REVISION_COUNT=$(cat revision_count.txt)
@@ -750,7 +750,7 @@ $(git show --stat)
 再度品質チェックをお願いします。"
 EOF
 
-chmod +x workspace/$(cat workspace/current_project_id.txt)/complete_revision.sh
+chmod +x workspace/$(./scripts/get-project-id.sh)/complete_revision.sh
 ```
 
 ## 開発効率向上のためのツール
@@ -758,7 +758,7 @@ chmod +x workspace/$(cat workspace/current_project_id.txt)/complete_revision.sh
 ### 1. 開発環境の自動化
 ```bash
 # 開発環境セットアップ
-cat > workspace/$(cat workspace/current_project_id.txt)/setup_dev_env.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/setup_dev_env.sh << 'EOF'
 #!/bin/bash
 
 echo "🚀 開発環境セットアップ開始"
@@ -793,7 +793,7 @@ EOF
 ### 2. 継続的品質チェック
 ```bash
 # Watch mode での品質チェック
-cat > workspace/$(cat workspace/current_project_id.txt)/quality_watch.sh << 'EOF'
+cat > workspace/$(./scripts/get-project-id.sh)/quality_watch.sh << 'EOF'
 #!/bin/bash
 
 echo "👀 品質監視モード開始"

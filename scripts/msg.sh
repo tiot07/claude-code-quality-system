@@ -23,7 +23,30 @@ else
     TARGET_PANE="0"
 fi
 
-# メッセージ送信
-tmux send-keys -t "$TARGET_PANE" "$1" C-m
+# Claudeが確実に入力を認識するように改善されたメッセージ送信
+# 1. 現在のプロンプトをクリア
+tmux send-keys -t "$TARGET_PANE" C-u
 
-echo "✅ 送信完了"
+# 2. 短い待機（処理安定化）
+sleep 0.2
+
+# 3. メッセージを段階的に送信
+echo "$1" | while IFS= read -r line || [ -n "$line" ]; do
+    tmux send-keys -t "$TARGET_PANE" "$line"
+    sleep 0.1
+done
+
+# 4. Enterを送信
+tmux send-keys -t "$TARGET_PANE" C-m
+
+# 5. フォーカスを確実にする
+tmux select-pane -t "$TARGET_PANE"
+sleep 0.1
+tmux select-pane -t "$CURRENT_PANE"
+
+# ログ記録
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] msg.sh: ペイン$CURRENT_PANE → ペイン$TARGET_PANE: $1" >> logs/direct_message.log
+
+echo "📤 メッセージ送信完了"
+echo "   送信先: ペイン $TARGET_PANE"
+echo "   内容: $1"

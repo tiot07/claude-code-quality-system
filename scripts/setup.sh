@@ -45,25 +45,33 @@ create_new_project_window() {
     tmux send-keys -t claude-qa-system:${project_name}.0 "cd $(pwd)" C-m
     tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(QualityManager) \w\$ '" C-m
     tmux send-keys -t claude-qa-system:${project_name}.0 "clear" C-m
-    # Claude起動と役割設定
+    # Claude起動（自動初期化なし）
     tmux send-keys -t claude-qa-system:${project_name}.0 "claude --dangerously-skip-permissions" C-m
-    sleep 3
-    tmux send-keys -t claude-qa-system:${project_name}.0 "あなたはquality-managerです。agents/quality-manager.mdの指示書に従って要件を受け付けてください。Developerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で右ペインに直接送信できます。" C-m
+    sleep 1
+    # 初期化メッセージは手動で送信されるまで待機
     
     # 右ペイン（Developer）設定
     tmux send-keys -t claude-qa-system:${project_name}.1 "cd $(pwd)" C-m
     tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(Developer) \w\$ '" C-m
     tmux send-keys -t claude-qa-system:${project_name}.1 "clear" C-m
-    # Claude起動と役割設定（少し遅らせて起動）
+    # Claude起動（自動初期化なし）
     sleep 2
     tmux send-keys -t claude-qa-system:${project_name}.1 "claude --dangerously-skip-permissions" C-m
-    sleep 3
-    tmux send-keys -t claude-qa-system:${project_name}.1 "あなたはdeveloperです。agents/developer.mdの指示書に従って実装作業を行ってください。QualityManagerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で左ペインに直接送信できます。" C-m
+    sleep 1
+    # 初期化メッセージは手動で送信されるまで待機
+    
+    # プロジェクトID設定（新規ウィンドウ用）
+    local window_session="claude-qa-system:${project_name}"
+    local new_project_id="${project_name}_$(date +%Y%m%d_%H%M%S)"
+    tmux set-environment -t "$window_session" PROJECT_ID "$new_project_id"
+    
+    # プロジェクトディレクトリ作成
+    mkdir -p "workspace/$new_project_id"
     
     # デフォルトではQualityManagerペインを選択
     tmux select-pane -t claude-qa-system:${project_name}.0
     
-    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
+    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name} (ID: $new_project_id)"
 }
 
 echo "🎯 Claude Code 品質保証システム 環境構築"
@@ -115,20 +123,20 @@ tmux split-window -h -t claude-qa-system:project-1
 tmux send-keys -t claude-qa-system:project-1.0 "cd $(pwd)" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "export PS1='(QualityManager) \w\$ '" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "clear" C-m
-# Claude起動と役割設定
+# Claude起動（自動初期化なし）
 tmux send-keys -t claude-qa-system:project-1.0 "claude --dangerously-skip-permissions" C-m
-sleep 3
-tmux send-keys -t claude-qa-system:project-1.0 "あなたはquality-managerです。agents/quality-manager.mdの指示書に従って要件を受け付けてください。Developerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で右ペインに直接送信できます。" C-m
+sleep 1
+# 初期化メッセージは手動で送信されるまで待機
 
 # 右ペイン（Developer）設定
 tmux send-keys -t claude-qa-system:project-1.1 "cd $(pwd)" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "export PS1='(Developer) \w\$ '" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "clear" C-m
-# Claude起動と役割設定（少し遅らせて起動）
+# Claude起動（自動初期化なし）
 sleep 2
 tmux send-keys -t claude-qa-system:project-1.1 "claude --dangerously-skip-permissions" C-m
-sleep 3
-tmux send-keys -t claude-qa-system:project-1.1 "あなたはdeveloperです。agents/developer.mdの指示書に従って実装作業を行ってください。QualityManagerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で左ペインに直接送信できます。" C-m
+sleep 1
+# 初期化メッセージは手動で送信されるまで待機
 
 # デフォルトではQualityManagerペインを選択
 tmux select-pane -t claude-qa-system:project-1.0
@@ -141,9 +149,18 @@ echo ""
 # STEP 4: 初期化ファイル作成
 log_info "📋 初期化ファイル作成中..."
 
-# プロジェクトIDファイル作成
-PROJECT_ID="qas_$(date +%Y%m%d_%H%M%S)"
-echo "$PROJECT_ID" > workspace/current_project_id.txt
+# プロジェクトID設定（tmux環境変数ベース）
+WINDOW_NAME=$(tmux display-message -p '#W')
+WINDOW_SESSION=$(tmux display-message -p '#S:#I')
+PROJECT_ID="${WINDOW_NAME}_$(date +%Y%m%d_%H%M%S)"
+
+# tmux環境変数に設定（ウィンドウ別・競合なし）
+tmux set-environment -t "$WINDOW_SESSION" PROJECT_ID "$PROJECT_ID"
+
+# プロジェクトディレクトリ作成
+mkdir -p "workspace/$PROJECT_ID"
+
+log_info "プロジェクトID設定: $PROJECT_ID (ウィンドウ: $WINDOW_NAME)"
 
 # 品質基準設定ファイル作成
 cat > tmp/quality_standards.json << EOF
@@ -246,8 +263,9 @@ echo ""
 echo "  1. 🔗 セッション接続:"
 echo "     tmux attach-session -t claude-qa-system"
 echo ""
-echo "  2. ✅ Claude Code自動起動完了"
-echo "     QualityManagerとDeveloperが自動で起動し、役割設定済みです"
+echo "  2. 🤖 エージェント初期化（重要）"
+echo "     Claude Code起動後、各ペインで以下を実行してください："
+echo "     ./scripts/init-agents.sh"
 echo ""
 echo "  3. 📁 追加プロジェクト作成:"
 echo "     ./scripts/setup.sh --add-project 2 webapp       # ウィンドウ名: webapp"
@@ -260,8 +278,9 @@ echo "     Developer: agents/developer.md"
 echo "     システム構造: CLAUDE.md（作成予定）"
 echo ""
 echo "  4. 🚀 システム開始:"
-echo "     Claude Codeは自動起動・役割設定済みです"
-echo "     QualityManagerに直接要件を伝えてプロジェクトを開始できます"
+echo "     エージェント初期化完了後、以下でプロジェクトを開始："
+echo "     - QualityManagerペイン: 要件を直接入力"
+echo "     - または ./scripts/msg.sh \"[要件]\" で相手ペインに送信"
 echo ""
 echo "  5. 📊 状態確認:"
 echo "     ./scripts/system-status.sh  # システム状態確認（作成予定）"
@@ -269,11 +288,12 @@ echo ""
 
 echo "💡 使用方法:"
 echo "==========="
-echo "1. QualityManagerに要件を伝える"
-echo "2. Manager-Developer間で直接通信 (./scripts/msg.sh)"
-echo "3. Developerが実装完了報告"
-echo "4. QualityManagerが品質チェック実行"
-echo "5. 合格なら完了、不合格なら修正指示"
+echo "1. 各ペインでエージェント初期化: ./scripts/init-agents.sh"
+echo "2. QualityManagerに要件を伝える"
+echo "3. Manager-Developer間で直接通信: ./scripts/msg.sh \"[メッセージ]\""
+echo "4. Developerが実装完了報告"
+echo "5. QualityManagerが品質チェック実行"
+echo "6. 合格なら完了、不合格なら修正指示"
 echo ""
 echo "🤝 新機能: 直接通信"
 echo "  - 位置確認: ./scripts/where-am-i.sh"

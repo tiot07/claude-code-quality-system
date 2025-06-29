@@ -1,0 +1,38 @@
+{
+  "project_id": "'${PROJECT_ID}'",
+  "title": "Voice-Enabled Stylish TODO App",
+  "created_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
+  "requirements": {
+    "functional": [
+      {"id": "F001", "description": "TODOタスクの作成・編集・削除機能", "priority": "high", "testable": true},
+      {"id": "F002", "description": "ドラッグ&ドロップによるタスク移動・並び替え", "priority": "high", "testable": true},
+      {"id": "F003", "description": "音声入力によるタスク追加機能", "priority": "high", "testable": true},
+      {"id": "F004", "description": "音声コマンドによるタスク削除機能", "priority": "high", "testable": true},
+      {"id": "F005", "description": "音声コマンドによるタスク移動機能", "priority": "high", "testable": true},
+      {"id": "F006", "description": "タスクの完了/未完了ステータス管理", "priority": "high", "testable": true},
+      {"id": "F007", "description": "スタイリッシュなUI/UXデザイン", "priority": "medium", "testable": true},
+      {"id": "F008", "description": "音声認識の精度向上とエラーハンドリング", "priority": "medium", "testable": true},
+      {"id": "F009", "description": "ローカルストレージによるデータ永続化", "priority": "medium", "testable": true}
+    ],
+    "quality": {
+      "performance": {"response_time": "< 500ms", "voice_recognition_latency": "< 1000ms"},
+      "usability": {"voice_commands": "直感的", "accessibility": "WCAG 2.1 AA", "responsive": true},
+      "reliability": {"voice_recognition_accuracy": "> 90%", "offline_capability": "partial"}
+    },
+    "technical": {
+      "stack": ["HTML5", "CSS3", "JavaScript (ES6+)", "Web Speech API", "SortableJS", "Local Storage"],
+      "architecture": "SPA (Single Page Application)",
+      "deployment": "Static hosting ready"
+    }
+  },
+  "acceptance_criteria": [
+    {"id": "AC001", "description": "マウスでタスクをドラッグして並び替えできる", "type": "functional"},
+    {"id": "AC002", "description": "音声で「タスクを追加、買い物」と言ってタスクが追加される", "type": "functional"},
+    {"id": "AC003", "description": "音声で「タスクを削除、1番目」と言ってタスクが削除される", "type": "functional"},
+    {"id": "AC004", "description": "音声で「タスクを移動、1番目を3番目に」と言って移動される", "type": "functional"},
+    {"id": "AC005", "description": "音声認識が90%以上の精度で動作する", "type": "performance"},
+    {"id": "AC006", "description": "モダンでスタイリッシュなデザインで表示される", "type": "usability"},
+    {"id": "AC007", "description": "音声テスト用のサンプル音声ファイルでテストが実行される", "type": "testing"}
+  ]
+}
+EOF < /dev/null

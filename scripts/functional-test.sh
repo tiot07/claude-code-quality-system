@@ -24,7 +24,7 @@ log_warning() {
 
 # プロジェクトID取得
 if [ -f workspace/current_project_id.txt ]; then
-    PROJECT_ID=$(cat workspace/current_project_id.txt)
+    PROJECT_ID=$(./scripts/get-project-id.sh)
 else
     log_error "プロジェクトIDが見つかりません"
     exit 1
