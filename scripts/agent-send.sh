@@ -53,22 +53,67 @@ get_current_project_id() {
     fi
 }
 
+# プロジェクト専用ウィンドウマッピング取得
+get_project_window_mapping() {
+    local project_id=$(get_current_project_id)
+    
+    if [ -z "$project_id" ]; then
+        echo ""
+        return 1
+    fi
+    
+    # プロジェクトIDに基づく専用ウィンドウマッピング
+    # 規則: プロジェクトIDのハッシュ値で決定的にウィンドウを割り当て
+    local hash_suffix=$(echo "$project_id" | tail -c 2)
+    case "$hash_suffix" in
+        "49"|"58"|*"9"|*"8") echo "project-1" ;;
+        *) echo "project-2" ;;
+    esac
+}
+
 # エージェント→tmuxターゲット マッピング
 get_agent_target() {
     local agent="$1"
     local window_name="$2"
+    local project_id=$(get_current_project_id)
     
-    # ウィンドウ名が指定されていない場合は現在のウィンドウを自動検出
+    # ウィンドウ名が指定されていない場合
     if [ -z "$window_name" ]; then
-        window_name=$(get_current_window)
-        if [ -z "$window_name" ]; then
-            echo "❌ エラー: 現在のウィンドウを検出できません。ウィンドウ名を指定してください。"
-            echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project-1"
-            echo "利用可能ウィンドウ:"
-            if tmux has-session -t claude-qa-system 2>/dev/null; then
-                tmux list-windows -t claude-qa-system -F "  #{window_name}"
+        # プロジェクトIDがある場合は専用ウィンドウマッピングを使用
+        if [ -n "$project_id" ]; then
+            window_name=$(get_project_window_mapping)
+            echo "🔒 プロジェクト分離: ${project_id} → ウィンドウ ${window_name}"
+        else
+            # プロジェクトIDがない場合は現在のウィンドウを使用
+            window_name=$(get_current_window)
+            if [ -z "$window_name" ]; then
+                echo "❌ エラー: プロジェクトIDまたはウィンドウ名を指定してください。"
+                echo "現在のプロジェクトID: $(get_current_project_id)"
+                echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project-1"
+                echo "利用可能ウィンドウ:"
+                if tmux has-session -t claude-qa-system 2>/dev/null; then
+                    tmux list-windows -t claude-qa-system -F "  #{window_name}"
+                fi
+                return 1
             fi
-            return 1
+        fi
+    fi
+    
+    # 🚨 プロジェクト混信完全防止: 強制的にプロジェクト専用ウィンドウを使用
+    if [ -n "$project_id" ]; then
+        local recommended_window=$(get_project_window_mapping)
+        if [ "$window_name" != "$recommended_window" ]; then
+            echo "🚨 プロジェクト混信防止: 自動修正実行"
+            echo "   現在プロジェクト: $project_id"
+            echo "   指定ウィンドウ: $window_name → $recommended_window (強制変更)"
+            echo "   理由: プロジェクト間混信を根本的に防止"
+            
+            # 強制的に推奨ウィンドウに変更
+            window_name="$recommended_window"
+            
+            # 修正ログを記録
+            mkdir -p logs
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] AUTO_CORRECTION: Project $project_id redirected to $recommended_window" >> logs/auto_correction.log
         fi
     fi
     
@@ -108,6 +153,7 @@ show_usage() {
 使用方法:
   $0 [エージェント名] [メッセージ] [ウィンドウ名(オプション)]
   $0 auto [メッセージ]              # 相手ペインに自動送信
+  $0 --safe-send [エージェント名] [メッセージ]  # 完全混信防止モード ⭐NEW
   $0 --list
   $0 --status
 
@@ -121,6 +167,8 @@ show_usage() {
   --list          エージェント一覧表示
   --status        システム状態確認
   --broadcast     全エージェントに一括送信
+  --check-cross   プロジェクト間混信チェック ⭐NEW
+  --safe-send     完全混信防止モード（自動ウィンドウ修正） ⭐NEW
 
 使用例:
   $0 auto "実装完了しました"                            # 同一ウィンドウの相手に自動送信 ⭐NEW
@@ -311,19 +359,58 @@ broadcast_message() {
     echo "[$timestamp] [$current_window] BROADCAST: $message" >> logs/broadcast_log_all.txt
 }
 
-# メッセージ送信
+# メッセージ送信（プロジェクトID検証ヘッダー付き）
 send_message() {
     local target="$1"
     local message="$2"
+    local current_window=$(get_current_window)
+    local project_id=$(get_current_project_id)
     
-    echo "📤 送信中: $target ← '$message'"
+    # プロジェクトID検証ヘッダーとガードレール機能を付加
+    local enhanced_message=""
+    if [ -n "$project_id" ]; then
+        enhanced_message="🔒 PROJECT_VERIFY:${project_id}:${current_window} 🔒
+
+【重要】このメッセージを受信した場合は以下を確認してください：
+1. 受信したプロジェクトID: ${project_id}
+2. あなたの現在のプロジェクトID: workspace/current_project_id.txt を確認
+3. 異なる場合は以下のエラーメッセージで応答してください：
+
+\`\`\`
+⚠️  プロジェクト混信を検出
+
+受信したメッセージは別プロジェクト（${project_id}）からのものですが、現在私が管理中のプロジェクトは[あなたのプロジェクトID]です。
+
+現在の状況
+- 管理中プロジェクト: [あなたのプロジェクトID]  
+- 受信メッセージ: ${project_id}
+
+これは別セッション間の混信である可能性があります。
+
+対応方針
+現在のプロジェクトの進捗を継続監視し、該当するエージェントからの報告を待機いたします。
+[あなたのプロジェクトID]の実装状況について、正しい進捗報告をお待ちしております。
+\`\`\`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**実際のメッセージ内容:**
+
+$message
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    else
+        enhanced_message="$message"
+    fi
+    
+    echo "📤 送信中: $target (プロジェクト: $project_id) ← メッセージ"
     
     # Claude Codeのプロンプトを一度クリア
     tmux send-keys -t "$target" C-c
     sleep 0.3
     
-    # メッセージ送信
-    tmux send-keys -t "$target" "$message"
+    # 検証ヘッダー付きメッセージ送信
+    tmux send-keys -t "$target" "$enhanced_message"
     sleep 0.1
     
     # エンター押下
@@ -385,6 +472,51 @@ update_agent_status() {
     esac
 }
 
+# プロジェクト間混信チェック
+check_cross_project_communication() {
+    echo "🔍 プロジェクト間混信チェック実行中..."
+    echo "========================================"
+    
+    local current_project=$(get_current_project_id)
+    local current_window=$(get_current_window)
+    local recommended_window=$(get_project_window_mapping)
+    
+    echo "📋 現在の設定:"
+    echo "   プロジェクトID: $current_project"
+    echo "   現在のウィンドウ: $current_window"
+    echo "   推奨ウィンドウ: $recommended_window"
+    echo ""
+    
+    # ログファイルから混信パターンを検出
+    echo "📝 最近の通信ログ解析:"
+    if [ -f logs/send_log_all.txt ]; then
+        echo "   === 全ウィンドウ統合ログ (直近10件) ==="
+        tail -10 logs/send_log_all.txt | while IFS= read -r line; do
+            # プロジェクトID抽出
+            project_in_log=$(echo "$line" | sed -n 's/.*\[\([^]]*\)\].*/\1/p')
+            if [ "$project_in_log" != "$current_project" ] && [ -n "$project_in_log" ]; then
+                echo "   ⚠️  混信検出: $line"
+            else
+                echo "   ✅ 正常: $line"
+            fi
+        done
+    else
+        echo "   ログファイルが見つかりません"
+    fi
+    echo ""
+    
+    # 修正提案
+    echo "🔧 混信防止推奨アクション:"
+    if [ "$current_window" != "$recommended_window" ]; then
+        echo "   1. 推奨ウィンドウ '$recommended_window' に移動"
+        echo "   2. または明示的にウィンドウ指定: ./scripts/agent-send.sh agent \"msg\" $recommended_window"
+    else
+        echo "   ✅ 現在の設定は適切です"
+    fi
+    echo "   3. メッセージ送信時はプロジェクトID検証ヘッダーを確認"
+    echo "   4. 受信時は送信元プロジェクトIDを検証"
+}
+
 # メイン処理
 main() {
     if [[ $# -eq 0 ]]; then
@@ -404,6 +536,58 @@ main() {
         exit 0
     fi
     
+    # --check-crossオプション
+    if [[ "$1" == "--check-cross" ]]; then
+        check_cross_project_communication
+        exit 0
+    fi
+    
+    # --safe-sendオプション（完全混信防止モード）
+    if [[ "$1" == "--safe-send" ]]; then
+        if [[ $# -lt 3 ]]; then
+            echo "❌ エラー: --safe-send には エージェント名とメッセージが必要です"
+            echo "使用例: $0 --safe-send developer \"実装完了しました\""
+            exit 1
+        fi
+        
+        local safe_agent="$2"
+        local safe_message="$3"
+        local project_id=$(get_current_project_id)
+        
+        echo "🛡️  完全混信防止モード: 実行中"
+        echo "   プロジェクト: $project_id"
+        echo "   送信先: $safe_agent"
+        
+        if [ -z "$project_id" ]; then
+            echo "❌ エラー: プロジェクトIDが設定されていません"
+            echo "workspace/current_project_id.txt を確認してください"
+            exit 1
+        fi
+        
+        # 強制的にプロジェクト専用ウィンドウを使用
+        local safe_window=$(get_project_window_mapping)
+        echo "   強制ウィンドウ: $safe_window (プロジェクト専用)"
+        
+        # 通常の送信処理を実行（ウィンドウは強制指定）
+        agent_name="$safe_agent"
+        message="$safe_message" 
+        window_name="$safe_window"
+        
+        echo "🚨 混信防止: プロジェクト ${project_id} 専用ウィンドウ ${safe_window} に強制送信"
+        
+        # ここから通常のメイン処理と同じ流れ
+    else
+        # 通常モードでの引数処理
+        if [[ $# -lt 2 ]]; then
+            show_usage
+            exit 1
+        fi
+        
+        agent_name="$1"
+        message="$2"
+        window_name="$3"  # オプション
+    fi
+    
     # --broadcastオプション
     if [[ "$1" == "--broadcast" ]]; then
         if [[ $# -lt 2 ]]; then
@@ -414,15 +598,6 @@ main() {
         broadcast_message "$2"
         exit 0
     fi
-    
-    if [[ $# -lt 2 ]]; then
-        show_usage
-        exit 1
-    fi
-    
-    local agent_name="$1"
-    local message="$2"
-    local window_name="$3"  # オプション: 指定されたウィンドウのみ
     
     # 人間への出力（特別処理）
     if [[ "$agent_name" == "human" ]]; then
