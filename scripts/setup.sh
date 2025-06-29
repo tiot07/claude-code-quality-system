@@ -18,6 +18,43 @@ log_warning() {
     echo -e "\033[1;33m[WARNING]\033[0m $1"
 }
 
+# 新しいプロジェクト追加機能
+create_new_project_window() {
+    local project_num=$1
+    local project_name=${2:-"project-${project_num}"}
+    
+    log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
+    
+    # 新しいウィンドウを作成
+    tmux new-window -t claude-qa-system -n "${project_name}"
+    
+    # 左右に分割
+    tmux split-window -h -t claude-qa-system:${project_name}
+    
+    # 左ペイン（QualityManager）設定
+    tmux send-keys -t claude-qa-system:${project_name}.0 "cd $(pwd)" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '=== QualityManager エージェント ==='" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name}'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 要件分析と品質チェックを担当'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '============================'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo ''" C-m
+    
+    # 右ペイン（Developer）設定
+    tmux send-keys -t claude-qa-system:${project_name}.1 "cd $(pwd)" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '=== Developer エージェント ==='" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name}'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- 高品質な実装を担当'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '========================='" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo ''" C-m
+    
+    # デフォルトではQualityManagerペインを選択
+    tmux select-pane -t claude-qa-system:${project_name}.0
+    
+    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
+}
+
 echo "🎯 Claude Code 品質保証システム 環境構築"
 echo "=========================================="
 echo ""
@@ -89,44 +126,7 @@ tmux select-pane -t claude-qa-system:project-1.0
 log_success "✅ メインセッション作成完了（プロジェクト1）"
 echo ""
 
-# STEP 3: 新しいプロジェクト追加機能
-create_new_project_window() {
-    local project_num=$1
-    local project_name=${2:-"project-${project_num}"}
-    
-    log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
-    
-    # 新しいウィンドウを作成
-    tmux new-window -t claude-qa-system -n "${project_name}"
-    
-    # 左右に分割
-    tmux split-window -h -t claude-qa-system:${project_name}
-    
-    # 左ペイン（QualityManager）設定
-    tmux send-keys -t claude-qa-system:${project_name}.0 "cd $(pwd)" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '=== QualityManager エージェント ==='" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name}'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 要件分析と品質チェックを担当'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '============================'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo ''" C-m
-    
-    # 右ペイン（Developer）設定
-    tmux send-keys -t claude-qa-system:${project_name}.1 "cd $(pwd)" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '=== Developer エージェント ==='" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name}'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- 高品質な実装を担当'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '========================='" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo ''" C-m
-    
-    # デフォルトではQualityManagerペインを選択
-    tmux select-pane -t claude-qa-system:${project_name}.0
-    
-    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
-}
-
-# この部分は既に上部で処理済み（重複削除）
+# STEP 3: この部分は既に上部で処理済み（重複削除）
 
 # STEP 4: 初期化ファイル作成
 log_info "📋 初期化ファイル作成中..."
