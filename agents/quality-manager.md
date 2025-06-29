@@ -85,11 +85,8 @@
 
 ### 2. 要件の構造化保存
 ```bash
-# 既存プロジェクトIDを取得（新規生成禁止）
-PROJECT_ID=$(get_current_project_id)
-if [ -z "$PROJECT_ID" ]; then
-    PROJECT_ID=$(cat workspace/current_project_id.txt 2>/dev/null || echo "")
-fi
+# 現在のプロジェクトIDを取得（ウィンドウベース）
+PROJECT_ID=$(./scripts/get-project-id.sh)
 if [ -z "$PROJECT_ID" ]; then
     echo "❌ エラー: プロジェクトIDが設定されていません" >&2
     echo "./scripts/agent-send.sh --set-project [プロジェクトID] で設定してください" >&2
@@ -135,8 +132,8 @@ EOF
 ```bash
 ./scripts/agent-send.sh developer "あなたはdeveloperです。
 
-【プロジェクトID】$(get_current_project_id || cat workspace/current_project_id.txt)
-【作業ディレクトリ】workspace/$(get_current_project_id || cat workspace/current_project_id.txt)
+【プロジェクトID】$(./scripts/get-project-id.sh)
+【作業ディレクトリ】workspace/$(./scripts/get-project-id.sh)
 
 【要件概要】
 [要件の簡潔な説明]

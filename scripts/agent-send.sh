@@ -115,13 +115,23 @@ auto_detect_project_from_workspace() {
                 basename "$detected"
                 return 0
             fi
+            
+            # ウィンドウ名完全一致でのプロジェクトディレクトリ検索
+            local detected=$(find workspace -maxdepth 1 -type d -name "${window_name}" | head -1)
+            if [ -n "$detected" ]; then
+                basename "$detected"
+                return 0
+            fi
         fi
         
-        # フォールバック: 任意のプロジェクトディレクトリを検索
-        local detected=$(find workspace -maxdepth 1 -type d -name "*_20*_*" | head -1)
-        if [ -n "$detected" ]; then
-            basename "$detected"
-            return 0
+        # 既存の一意プロジェクトが1つだけの場合はそれを使用
+        local existing_projects=$(find workspace -maxdepth 1 -type d -name "*_20*_*" | wc -l)
+        if [ "$existing_projects" -eq 1 ]; then
+            local detected=$(find workspace -maxdepth 1 -type d -name "*_20*_*" | head -1)
+            if [ -n "$detected" ]; then
+                basename "$detected"
+                return 0
+            fi
         fi
     fi
     

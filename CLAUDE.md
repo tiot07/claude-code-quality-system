@@ -67,7 +67,7 @@ Claude Code同士が協働して品質保証を行う自動化システム
 
 ## プロジェクト管理
 ### 現在のプロジェクト
-- プロジェクトID: `workspace/current_project_id.txt`
+- プロジェクトID: tmuxウィンドウ名ベースで自動管理
 - 作業ディレクトリ: `workspace/[プロジェクトID]/`
 
 ### 品質基準

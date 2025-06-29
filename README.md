@@ -380,12 +380,12 @@ tail -f logs/send_log.txt
 
 複数プロジェクトの同時実行:
 ```bash
-# プロジェクト1
-echo "project1_20240101_120000" > workspace/current_project_id.txt
+# プロジェクト1（window: project-1）
+tmux new-window -t claude-qa-system -n project-1
 ./scripts/feedback-loop.sh --auto-run &
 
-# プロジェクト2  
-echo "project2_20240101_130000" > workspace/current_project_id.txt
+# プロジェクト2（window: project-2）
+tmux new-window -t claude-qa-system -n project-2
 ./scripts/feedback-loop.sh --auto-run &
 ```
 
