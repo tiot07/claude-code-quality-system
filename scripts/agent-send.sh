@@ -3,10 +3,41 @@
 # 🚀 Quality Assurance System エージェント間メッセージ送信スクリプト
 # QualityManager ↔ Developer 間の通信を管理
 
+# 現在のウィンドウを自動検出
+get_current_window() {
+    # tmux環境変数から現在のウィンドウを取得
+    if [ -n "$TMUX_PANE" ]; then
+        local current_window=$(tmux display-message -p '#W')
+        echo "$current_window"
+    else
+        # tmux外から実行された場合はアクティブウィンドウを使用
+        if tmux has-session -t claude-qa-system 2>/dev/null; then
+            local active_window=$(tmux list-windows -t claude-qa-system -F "#{?window_active,#{window_name},}" | grep -v '^$')
+            echo "$active_window"
+        else
+            echo ""
+        fi
+    fi
+}
+
 # エージェント→tmuxターゲット マッピング
 get_agent_target() {
     local agent="$1"
-    local window_name="${2:-project-1}"  # デフォルトはproject-1
+    local window_name="$2"
+    
+    # ウィンドウ名が指定されていない場合は現在のウィンドウを自動検出
+    if [ -z "$window_name" ]; then
+        window_name=$(get_current_window)
+        if [ -z "$window_name" ]; then
+            echo "❌ エラー: 現在のウィンドウを検出できません。ウィンドウ名を指定してください。"
+            echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" webapp"
+            echo "利用可能ウィンドウ:"
+            if tmux has-session -t claude-qa-system 2>/dev/null; then
+                tmux list-windows -t claude-qa-system -F "  #{window_name}"
+            fi
+            return 1
+        fi
+    fi
     
     case "$agent" in
         "quality-manager") echo "claude-qa-system:${window_name}.0" ;;  # 左ペイン
@@ -36,12 +67,12 @@ show_usage() {
   --broadcast     全エージェントに一括送信
 
 使用例:
-  $0 quality-manager "要件分析を開始してください"
-  $0 developer "実装タスクです: ログイン機能を作成"
-  $0 quality-manager "ECサイト要件" webapp
-  $0 developer "API実装完了報告" api-service
-  $0 human "プロジェクトが完了しました"
-  $0 --broadcast "システム更新のお知らせ"
+  $0 quality-manager "要件分析を開始してください"        # 現在のウィンドウに送信
+  $0 developer "実装タスクです: ログイン機能を作成"      # 現在のウィンドウに送信
+  $0 quality-manager "ECサイト要件" webapp              # 指定ウィンドウに送信
+  $0 developer "API実装完了報告" api-service            # 指定ウィンドウに送信
+  $0 human "プロジェクトが完了しました"                  # 人間への出力
+  $0 --broadcast "システム更新のお知らせ"                # 全エージェントに送信
 
 品質保証フロー:
   human → quality-manager → developer → quality-manager → human
@@ -300,17 +331,23 @@ main() {
     # エージェントターゲット取得
     local target
     target=$(get_agent_target "$agent_name" "$window_name")
+    local get_target_result=$?
     
-    if [[ -z "$target" ]]; then
-        echo "❌ エラー: 不明なエージェント '$agent_name'"
-        echo ""
-        echo "利用可能エージェント:"
-        echo "  quality-manager - 品質管理責任者（左ペイン）"
-        echo "  developer       - エンジニア（右ペイン）"
-        echo "  human          - 人間への出力"
-        echo ""
-        echo "一覧表示: $0 --list"
-        exit 1
+    if [[ $get_target_result -ne 0 ]] || [[ -z "$target" ]]; then
+        if [[ $get_target_result -ne 0 ]]; then
+            # get_agent_target内でエラーメッセージが既に表示されている
+            exit 1
+        else
+            echo "❌ エラー: 不明なエージェント '$agent_name'"
+            echo ""
+            echo "利用可能エージェント:"
+            echo "  quality-manager - 品質管理責任者（左ペイン）"
+            echo "  developer       - エンジニア（右ペイン）"
+            echo "  human          - 人間への出力"
+            echo ""
+            echo "一覧表示: $0 --list"
+            exit 1
+        fi
     fi
     
     # ターゲット確認
@@ -327,11 +364,9 @@ main() {
     # エージェント状態更新
     update_agent_status "$agent_name"
     
-    if [[ -n "$window_name" ]]; then
-        echo "✅ 送信完了: $agent_name ($window_name) に '$message'"
-    else
-        echo "✅ 送信完了: $agent_name (project-1) に '$message'"
-    fi
+    # 実際に使用されたウィンドウ名を取得
+    local actual_window=$(echo "$target" | cut -d':' -f2 | cut -d'.' -f1)
+    echo "✅ 送信完了: $agent_name ($actual_window) に '$message'"
     
     # 品質保証フロー情報
     case "$agent_name" in

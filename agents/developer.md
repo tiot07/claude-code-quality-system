@@ -16,15 +16,20 @@ QualityManager ← 修正指示受け取り ← 品質チェック不合格 ←�
 
 ### メッセージ送信コマンド
 ```bash
-# QualityManagerに送信（同じウィンドウ内）
+# QualityManagerに送信（現在のウィンドウ内 - 自動検出）
 ./scripts/agent-send.sh quality-manager "[メッセージ]"
 
-# QualityManagerに送信（特定のウィンドウ）
+# QualityManagerに送信（特定のウィンドウを明示指定）
 ./scripts/agent-send.sh quality-manager "[メッセージ]" webapp
 
 # 人間に報告
 ./scripts/agent-send.sh human "[メッセージ]"
 ```
+
+### ⚠️ 重要: プロジェクト間混信防止
+- **現在のウィンドウ内通信**: ウィンドウ名を省略すると現在のウィンドウが自動検出されます
+- **別プロジェクトへの送信**: 必ずウィンドウ名を明示指定してください
+- **同一プロジェクト内通信**: 基本的にウィンドウ名省略で問題ありません
 
 ### 必須報告タイミング
 1. **実装開始時**: QualityManagerに作業開始を報告
