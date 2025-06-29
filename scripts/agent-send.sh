@@ -55,85 +55,42 @@ get_current_pane_id() {
     fi
 }
 
-# tmuxペイン別のプロジェクトIDファイルパスを取得
-get_project_id_file_path() {
+# ウィンドウ名からプロジェクトIDを直接生成（ファイル不要）
+get_project_id_from_window() {
     local current_window=$(get_current_window)
     
-    # ウィンドウ名が取得できた場合は、ウィンドウ別のファイルを使用
-    if [ -n "$current_window" ]; then
-        echo "workspace/current_project_id_${current_window}.txt"
-        return 0
-    fi
-    
-    # ペインIDでのフォールバック
-    local pane_id=$(get_current_pane_id)
-    if [ -n "$pane_id" ]; then
-        local safe_pane_id=$(echo "$pane_id" | sed 's/%/pane_/')
-        echo "workspace/current_project_id_${safe_pane_id}.txt"
-        return 0
-    fi
-    
-    # 最終フォールバック：共有ファイル
-    echo "workspace/current_project_id.txt"
-}
-
-# プロジェクトIDの取得（ペイン別管理・競合状態を考慮）
-get_current_project_id() {
-    local id_file=$(get_project_id_file_path)
-    
-    # ファイルが存在しない場合は、既存プロジェクトから自動検出を試行
-    if [ ! -f "$id_file" ]; then
-        local auto_detected=$(auto_detect_project_from_workspace)
-        if [ -n "$auto_detected" ]; then
-            echo "🔍 自動検出: プロジェクトID '$auto_detected' を発見" >&2
-            # 検出されたプロジェクトIDを設定
-            set_current_project_id "$auto_detected"
-            echo "$auto_detected"
-            return 0
-        fi
-        
+    if [ -z "$current_window" ]; then
         echo ""
         return 1
     fi
     
-    # ファイルロックを使用した安全な読み込み
-    if command -v flock &> /dev/null; then
-        # flockが利用可能な場合
-        (
-            flock -s 200
-            cat "$id_file" 2>/dev/null | tr -d '\n\r'
-        ) 200>"${id_file}.lock"
-    else
-        # flockが利用できない場合
-        # 複数回試行して最新の値を取得
-        local attempt=0
-        local max_attempts=3
-        local value1=""
-        local value2=""
-        
-        while [ $attempt -lt $max_attempts ]; do
-            value1=$(cat "$id_file" 2>/dev/null | tr -d '\n\r')
-            sleep 0.01
-            value2=$(cat "$id_file" 2>/dev/null | tr -d '\n\r')
-            
-            # 2回の読み込みが一致すれば信頼できる
-            if [ "$value1" = "$value2" ]; then
-                echo "$value1"
-                return 0
-            fi
-            
-            attempt=$((attempt + 1))
-        done
-        
-        # 最後の読み込み値を返す
-        echo "$value2"
-    fi
+    # ウィンドウ名をベースにタイムスタンプ付きプロジェクトIDを生成
+    echo "${current_window}_$(date +%Y%m%d_%H%M%S)"
 }
 
-# プロジェクトIDの設定（ペイン別管理）
-set_current_project_id() {
+# プロジェクトIDの取得（シンプル化：ウィンドウ名ベース）
+get_current_project_id() {
+    local current_window=$(get_current_window)
+    
+    if [ -z "$current_window" ]; then
+        echo ""
+        return 1
+    fi
+    
+    # 既存プロジェクトディレクトリから検出を試行
+    local existing_project=$(auto_detect_project_from_workspace "$current_window")
+    if [ -n "$existing_project" ]; then
+        echo "$existing_project"
+        return 0
+    fi
+    
+    # 新規プロジェクトIDを生成（必要時のみ）
+    echo "${current_window}_$(date +%Y%m%d_%H%M%S)"
+}
+
+# プロジェクトディレクトリの確保（ファイル管理なし）
+ensure_project_directory() {
     local project_id="$1"
-    local id_file=$(get_project_id_file_path)
     
     if [ -z "$project_id" ]; then
         echo "❌ エラー: プロジェクトIDが指定されていません" >&2
@@ -141,49 +98,29 @@ set_current_project_id() {
     fi
     
     mkdir -p workspace
-    
-    # プロジェクト専用ディレクトリも作成
     mkdir -p "workspace/$project_id"
     
-    # ファイルロックを使用した安全な書き込み
-    if command -v flock &> /dev/null; then
-        (
-            flock -x 200
-            echo "$project_id" > "$id_file"
-        ) 200>"${id_file}.lock"
-    else
-        # 簡易的なロック機構
-        local lock_file="${id_file}.lock"
-        local max_wait=5
-        local waited=0
-        
-        while [ -f "$lock_file" ] && [ $waited -lt $max_wait ]; do
-            sleep 0.1
-            waited=$((waited + 1))
-        done
-        
-        echo $$ > "$lock_file"
-        echo "$project_id" > "$id_file"
-        rm -f "$lock_file"
-    fi
-    
-    echo "✅ プロジェクトID設定完了: $project_id (ペイン: $(get_current_pane_id))" >&2
-    
-    # 統計情報更新
-    mkdir -p tmp
-    echo "$(date '+%Y-%m-%d %H:%M:%S'): $(get_current_pane_id) → $project_id" >> tmp/project_assignments.log
+    echo "✅ プロジェクトディレクトリ確保: $project_id" >&2
 }
 
-# 既存のプロジェクトディレクトリから自動検出
+# 既存のプロジェクトディレクトリから自動検出（ウィンドウ名を考慮）
 auto_detect_project_from_workspace() {
-    # workspace/内のディレクトリからプロジェクトIDパターンを検出
+    local window_name="$1"
+    
     if [ -d "workspace" ]; then
+        # 指定されたウィンドウ名で始まるプロジェクトディレクトリを検索
+        if [ -n "$window_name" ]; then
+            local detected=$(find workspace -maxdepth 1 -type d -name "${window_name}_20*_*" | head -1)
+            if [ -n "$detected" ]; then
+                basename "$detected"
+                return 0
+            fi
+        fi
+        
+        # フォールバック: 任意のプロジェクトディレクトリを検索
         local detected=$(find workspace -maxdepth 1 -type d -name "*_20*_*" | head -1)
         if [ -n "$detected" ]; then
-            detected=$(basename "$detected")
-        fi
-        if [ -n "$detected" ] && [ "$detected" != "workspace" ]; then
-            echo "$detected"
+            basename "$detected"
             return 0
         fi
     fi
@@ -192,47 +129,10 @@ auto_detect_project_from_workspace() {
     return 1
 }
 
-# プロジェクト専用ウィンドウマッピング取得
+# プロジェクト専用ウィンドウマッピング取得（シンプル化）
 get_project_window_mapping() {
-    local project_id=$(get_current_project_id)
-    
-    if [ -z "$project_id" ]; then
-        echo ""
-        return 1
-    fi
-    
-    # マッピングファイルから明示的な対応を取得
-    if [ -f "tmp/project_window_mapping.json" ]; then
-        # 各ウィンドウのプロジェクトIDをチェック
-        for window in project-1 project-2 zsh; do
-            local mapped_id=$(jq -r ".mappings.\"$window\".project_id // empty" tmp/project_window_mapping.json 2>/dev/null)
-            if [ "$mapped_id" = "$project_id" ]; then
-                echo "$window"
-                return 0
-            fi
-        done
-    fi
-    
-    # フォールバック：プロジェクトIDに基づく決定的マッピング
-    local hash_value
-    if command -v md5sum &> /dev/null; then
-        hash_value=$(echo -n "$project_id" | md5sum | cut -c1-8)
-    elif command -v md5 &> /dev/null; then
-        hash_value=$(echo -n "$project_id" | md5 | cut -c1-8)
-    else
-        hash_value=$(echo -n "$project_id" | cksum | cut -d' ' -f1)
-    fi
-    
-    local hash_num=$(echo "$hash_value" | tr -d 'a-f' | cut -c1-6)
-    if [ -z "$hash_num" ]; then
-        hash_num=0
-    fi
-    
-    if [ $((hash_num % 2)) -eq 0 ]; then
-        echo "project-1"
-    else
-        echo "project-2"
-    fi
+    # 現在のウィンドウをそのまま返す（ウィンドウ=プロジェクトの1:1対応）
+    get_current_window
 }
 
 # エージェント→tmuxターゲット マッピング
@@ -243,36 +143,22 @@ get_agent_target() {
     
     # ウィンドウ名が指定されていない場合
     if [ -z "$window_name" ]; then
-        # プロジェクトIDがある場合は専用ウィンドウマッピングを使用
-        if [ -n "$project_id" ]; then
-            window_name=$(get_project_window_mapping)
-            echo "🔒 プロジェクト分離: ${project_id} → ウィンドウ ${window_name}" >&2
-        else
-            # プロジェクトIDがない場合は現在のウィンドウを使用
-            window_name=$(get_current_window)
-            if [ -z "$window_name" ]; then
-                echo "❌ エラー: プロジェクトIDまたはウィンドウ名を指定してください。"
-                echo "現在のプロジェクトID: $(get_current_project_id)"
-                echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project-1"
-                echo "利用可能ウィンドウ:"
-                if tmux has-session -t claude-qa-system 2>/dev/null; then
-                    tmux list-windows -t claude-qa-system -F "  #{window_name}"
-                fi
-                return 1
+        # 現在のウィンドウを使用（シンプル化）
+        window_name=$(get_current_window)
+        if [ -z "$window_name" ]; then
+            echo "❌ エラー: ウィンドウ名を取得できません。"
+            echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project-1"
+            echo "利用可能ウィンドウ:"
+            if tmux has-session -t claude-qa-system 2>/dev/null; then
+                tmux list-windows -t claude-qa-system -F "  #{window_name}"
             fi
+            return 1
         fi
     fi
     
-    # プロジェクトとウィンドウの対応を検証（警告のみ、強制変更なし）
-    if [ -n "$project_id" ] && [ -n "$window_name" ]; then
-        local recommended_window=$(get_project_window_mapping)
-        if [ -n "$recommended_window" ] && [ "$window_name" != "$recommended_window" ]; then
-            echo "⚠️  プロジェクト混信の可能性" >&2
-            echo "   現在プロジェクト: $project_id" >&2
-            echo "   指定ウィンドウ: $window_name" >&2
-            echo "   推奨ウィンドウ: $recommended_window" >&2
-            echo "   ヒント: 正しいウィンドウを明示的に指定してください" >&2
-        fi
+    # プロジェクトディレクトリの確保
+    if [ -n "$project_id" ]; then
+        ensure_project_directory "$project_id"
     fi
     
     # 特別処理: エージェント名が省略された場合は同一ウィンドウの相手ペインを自動選択
@@ -392,38 +278,22 @@ show_status() {
     fi
     echo ""
     
-    # 現在のプロジェクトとウィンドウ（ペイン別対応）
+    # 現在の状況（シンプル化）
     local current_window=$(get_current_window)
     local current_pane=$(get_current_pane_id)
     local project_id=$(get_current_project_id)
-    local project_file=$(get_project_id_file_path)
     
     echo "📁 現在のウィンドウ: $current_window"
     echo "🖥️  現在のペイン: $current_pane"
-    echo "📄 プロジェクトIDファイル: $project_file"
     if [ -n "$project_id" ]; then
-        echo "📝 設定プロジェクトID: $project_id"
-        echo "🎯 推奨ウィンドウ: $(get_project_window_mapping)"
-    else
-        echo "📝 設定プロジェクトID: なし"
-        echo "💡 設定方法: $0 --set-project \"プロジェクトID\""
-    fi
-    
-    # 他のペインのプロジェクト状況も表示
-    echo ""
-    echo "🔍 全ペインのプロジェクト状況:"
-    for pane_file in workspace/current_project_id_pane_*.txt; do
-        if [ -f "$pane_file" ]; then
-            local pane_name=$(basename "$pane_file" | sed 's/current_project_id_\(.*\)\.txt/\1/')
-            local pane_project=$(cat "$pane_file" 2>/dev/null | tr -d '\n\r')
-            echo "  $pane_name: $pane_project"
+        echo "📝 プロジェクトID: $project_id"
+        if [ -d "workspace/$project_id" ]; then
+            echo "📂 作業ディレクトリ: workspace/$project_id ✅"
+        else
+            echo "📂 作業ディレクトリ: workspace/$project_id ❌ (未作成)"
         fi
-    done
-    
-    # 従来の共有ファイルも確認
-    if [ -f "workspace/current_project_id.txt" ]; then
-        local shared_project=$(cat "workspace/current_project_id.txt" 2>/dev/null | tr -d '\n\r')
-        echo "  共有ファイル: $shared_project"
+    else
+        echo "📝 プロジェクトID: なし"
     fi
     echo ""
     
@@ -844,41 +714,16 @@ main() {
         exit 0
     fi
     
-    # --set-projectオプション（プロジェクトID設定）
+    # --set-projectオプション（廃止予定 - 警告のみ）
     if [[ "$1" == "--set-project" ]]; then
-        if [[ $# -lt 2 ]]; then
-            echo "❌ エラー: プロジェクトIDが指定されていません"
-            echo "使用例: $0 --set-project \"game_corp_site_20250629_182527\""
-            echo ""
-            echo "既存プロジェクト自動検出:"
-            local detected=$(auto_detect_project_from_workspace)
-            if [ -n "$detected" ]; then
-                echo "  検出されたプロジェクト: $detected"
-                echo "  設定する場合: $0 --set-project \"$detected\""
-            else
-                echo "  プロジェクトが見つかりませんでした"
-            fi
-            exit 1
-        fi
-        
-        local project_id="$2"
-        echo "🔧 プロジェクトID設定モード"
-        echo "   対象ペイン: $(get_current_pane_id)"
-        echo "   プロジェクトID: $project_id"
-        
-        set_current_project_id "$project_id"
-        
-        # 設定確認
-        local current_id=$(get_current_project_id)
-        if [ "$current_id" = "$project_id" ]; then
-            echo "✅ プロジェクトID設定成功"
-            echo "   ファイル: $(get_project_id_file_path)"
-            echo "   推奨ウィンドウ: $(get_project_window_mapping)"
-        else
-            echo "❌ プロジェクトID設定失敗"
-            exit 1
-        fi
-        
+        echo "⚠️  --set-project オプションは廃止されました"
+        echo "プロジェクトIDはウィンドウ名から自動生成されます"
+        echo ""
+        echo "現在のウィンドウ: $(get_current_window)"
+        echo "自動生成されるプロジェクトID: $(get_current_project_id)"
+        echo ""
+        echo "プロジェクトディレクトリを作成したい場合:"
+        echo "  mkdir -p workspace/\$(get_current_project_id)"
         exit 0
     fi
     
