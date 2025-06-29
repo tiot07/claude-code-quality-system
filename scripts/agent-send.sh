@@ -5,10 +5,13 @@
 
 # エージェント→tmuxターゲット マッピング
 get_agent_target() {
-    case "$1" in
-        "quality-manager") echo "quality-manager" ;;
-        "developer") echo "developer" ;;
-        "human") echo "human" ;; # 特別ターゲット（人間への出力）
+    local agent="$1"
+    local window_name="${2:-project-1}"  # デフォルトはproject-1
+    
+    case "$agent" in
+        "quality-manager") echo "claude-qa-system:${window_name}.0" ;;  # 左ペイン
+        "developer") echo "claude-qa-system:${window_name}.1" ;;        # 右ペイン
+        "human") echo "human" ;;  # 特別ターゲット（人間への出力）
         *) echo "" ;;
     esac
 }
@@ -18,13 +21,13 @@ show_usage() {
 🎯 Quality Assurance System エージェント間メッセージ送信
 
 使用方法:
-  $0 [エージェント名] [メッセージ]
+  $0 [エージェント名] [メッセージ] [ウィンドウ名(オプション)]
   $0 --list
   $0 --status
 
 利用可能エージェント:
-  quality-manager - 品質管理責任者
-  developer       - エンジニア（実装担当）
+  quality-manager - 品質管理責任者（左ペイン）
+  developer       - エンジニア（右ペイン）
   human          - 人間（ユーザー）への出力
 
 特別コマンド:
@@ -35,6 +38,8 @@ show_usage() {
 使用例:
   $0 quality-manager "要件分析を開始してください"
   $0 developer "実装タスクです: ログイン機能を作成"
+  $0 quality-manager "ECサイト要件" webapp
+  $0 developer "API実装完了報告" api-service
   $0 human "プロジェクトが完了しました"
   $0 --broadcast "システム更新のお知らせ"
 
@@ -47,9 +52,16 @@ EOF
 show_agents() {
     echo "📋 利用可能なエージェント:"
     echo "=========================="
-    echo "  quality-manager → quality-manager:0  (品質管理責任者)"
-    echo "  developer       → developer:0        (エンジニア)"
-    echo "  human          → console output      (人間への出力)"
+    echo "  quality-manager → claude-qa-system:[window].0  (品質管理責任者・左ペイン)"
+    echo "  developer       → claude-qa-system:[window].1  (エンジニア・右ペイン)"
+    echo "  human          → console output               (人間への出力)"
+    echo ""
+    echo "🪟 利用可能なウィンドウ:"
+    if tmux has-session -t claude-qa-system 2>/dev/null; then
+        tmux list-windows -t claude-qa-system -F "  #{window_name} (#{window_index})"
+    else
+        echo "  セッションが見つかりません"
+    fi
     echo ""
     echo "🔄 品質保証フロー:"
     echo "  1. human → quality-manager (要件提示)"
@@ -66,16 +78,13 @@ show_status() {
     
     # tmuxセッション確認
     echo "🖥️  tmuxセッション:"
-    if tmux has-session -t quality-manager 2>/dev/null; then
-        echo "  ✅ quality-manager: 起動中"
+    if tmux has-session -t claude-qa-system 2>/dev/null; then
+        echo "  ✅ claude-qa-system: 起動中"
+        echo "     ウィンドウ一覧:"
+        tmux list-windows -t claude-qa-system -F "       #{window_index}: #{window_name} (#{window_panes} panes)"
     else
-        echo "  ❌ quality-manager: 停止中"
-    fi
-    
-    if tmux has-session -t developer 2>/dev/null; then
-        echo "  ✅ developer: 起動中"
-    else
-        echo "  ❌ developer: 停止中"
+        echo "  ❌ claude-qa-system: 停止中"
+        echo "     ./scripts/setup.sh を実行してセッションを作成してください"
     fi
     echo ""
     
@@ -155,20 +164,32 @@ broadcast_message() {
     
     echo "📢 全エージェントに一括送信中: '$message'"
     
-    # Quality Managerに送信
-    if tmux has-session -t quality-manager 2>/dev/null; then
-        send_message "quality-manager" "$message"
-        echo "  ✅ quality-manager に送信完了"
+    # 全ウィンドウのQuality Managerに送信
+    if tmux has-session -t claude-qa-system 2>/dev/null; then
+        local windows=$(tmux list-windows -t claude-qa-system -F "#{window_name}")
+        while IFS= read -r window; do
+            if [ -n "$window" ]; then
+                local qm_target=$(get_agent_target "quality-manager" "$window")
+                send_message "$qm_target" "$message"
+                echo "  ✅ quality-manager ($window) に送信完了"
+            fi
+        done <<< "$windows"
     else
-        echo "  ❌ quality-manager セッションが見つかりません"
+        echo "  ❌ claude-qa-system セッションが見つかりません"
     fi
     
-    # Developerに送信
-    if tmux has-session -t developer 2>/dev/null; then
-        send_message "developer" "$message"
-        echo "  ✅ developer に送信完了"
+    # 全ウィンドウのDeveloperに送信
+    if tmux has-session -t claude-qa-system 2>/dev/null; then
+        local windows=$(tmux list-windows -t claude-qa-system -F "#{window_name}")
+        while IFS= read -r window; do
+            if [ -n "$window" ]; then
+                local dev_target=$(get_agent_target "developer" "$window")
+                send_message "$dev_target" "$message"
+                echo "  ✅ developer ($window) に送信完了"
+            fi
+        done <<< "$windows"
     else
-        echo "  ❌ developer セッションが見つかりません"
+        echo "  ❌ claude-qa-system セッションが見つかりません"
     fi
     
     # 人間にも通知
@@ -267,6 +288,7 @@ main() {
     
     local agent_name="$1"
     local message="$2"
+    local window_name="$3"  # オプション: 指定されたウィンドウのみ
     
     # 人間への出力（特別処理）
     if [[ "$agent_name" == "human" ]]; then
@@ -277,14 +299,14 @@ main() {
     
     # エージェントターゲット取得
     local target
-    target=$(get_agent_target "$agent_name")
+    target=$(get_agent_target "$agent_name" "$window_name")
     
     if [[ -z "$target" ]]; then
         echo "❌ エラー: 不明なエージェント '$agent_name'"
         echo ""
         echo "利用可能エージェント:"
-        echo "  quality-manager - 品質管理責任者"
-        echo "  developer       - エンジニア"
+        echo "  quality-manager - 品質管理責任者（左ペイン）"
+        echo "  developer       - エンジニア（右ペイン）"
         echo "  human          - 人間への出力"
         echo ""
         echo "一覧表示: $0 --list"
@@ -305,7 +327,11 @@ main() {
     # エージェント状態更新
     update_agent_status "$agent_name"
     
-    echo "✅ 送信完了: $agent_name に '$message'"
+    if [[ -n "$window_name" ]]; then
+        echo "✅ 送信完了: $agent_name ($window_name) に '$message'"
+    else
+        echo "✅ 送信完了: $agent_name (project-1) に '$message'"
+    fi
     
     # 品質保証フロー情報
     case "$agent_name" in
