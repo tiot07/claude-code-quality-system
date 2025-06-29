@@ -50,14 +50,8 @@ get_current_pane_id() {
         # tmux内から実行された場合、ペインIDを取得
         echo "$TMUX_PANE"
     else
-        # tmux外から実行された場合、現在のウィンドウとペインを推定
-        local current_window=$(get_current_window)
-        if [ -n "$current_window" ]; then
-            # デフォルトでペイン0（quality-manager）を想定
-            echo "%0"
-        else
-            echo ""
-        fi
+        # tmux外から実行された場合は空文字を返す（共有ファイル使用）
+        echo ""
     fi
 }
 
@@ -140,6 +134,9 @@ set_current_project_id() {
     fi
     
     mkdir -p workspace
+    
+    # プロジェクト専用ディレクトリも作成
+    mkdir -p "workspace/$project_id"
     
     # ファイルロックを使用した安全な書き込み
     if command -v flock &> /dev/null; then

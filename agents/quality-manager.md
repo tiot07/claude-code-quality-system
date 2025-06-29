@@ -85,10 +85,24 @@
 
 ### 2. 要件の構造化保存
 ```bash
-# 要件ファイルの自動生成
-cat > workspace/requirements_$(date +%Y%m%d_%H%M%S).json << EOF
+# 既存プロジェクトIDを取得（新規生成禁止）
+PROJECT_ID=$(get_current_project_id)
+if [ -z "$PROJECT_ID" ]; then
+    PROJECT_ID=$(cat workspace/current_project_id.txt 2>/dev/null || echo "")
+fi
+if [ -z "$PROJECT_ID" ]; then
+    echo "❌ エラー: プロジェクトIDが設定されていません" >&2
+    echo "./scripts/agent-send.sh --set-project [プロジェクトID] で設定してください" >&2
+    exit 1
+fi
+
+# プロジェクトディレクトリ作成
+mkdir -p "workspace/${PROJECT_ID}"
+
+# 要件ファイルの生成（既存プロジェクトID使用）
+cat > "workspace/${PROJECT_ID}/requirements.json" << EOF
 {
-  "project_id": "$(date +%Y%m%d_%H%M%S)",
+  "project_id": "${PROJECT_ID}",
   "title": "[プロジェクト名]",
   "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "requirements": {
@@ -121,8 +135,8 @@ EOF
 ```bash
 ./scripts/agent-send.sh developer "あなたはdeveloperです。
 
-【プロジェクトID】$(cat workspace/current_project_id.txt)
-【作業ディレクトリ】workspace/$(cat workspace/current_project_id.txt)
+【プロジェクトID】$(get_current_project_id || cat workspace/current_project_id.txt)
+【作業ディレクトリ】workspace/$(get_current_project_id || cat workspace/current_project_id.txt)
 
 【要件概要】
 [要件の簡潔な説明]
