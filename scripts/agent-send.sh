@@ -44,11 +44,53 @@ get_target_agent() {
     esac
 }
 
-# プロジェクトIDの取得（競合状態を考慮）
-get_current_project_id() {
-    local id_file="workspace/current_project_id.txt"
+# 現在のtmuxペインIDを取得
+get_current_pane_id() {
+    if [ -n "$TMUX_PANE" ]; then
+        # tmux内から実行された場合、ペインIDを取得
+        echo "$TMUX_PANE"
+    else
+        # tmux外から実行された場合、現在のウィンドウとペインを推定
+        local current_window=$(get_current_window)
+        if [ -n "$current_window" ]; then
+            # デフォルトでペイン0（quality-manager）を想定
+            echo "%0"
+        else
+            echo ""
+        fi
+    fi
+}
+
+# tmuxペイン別のプロジェクトIDファイルパスを取得
+get_project_id_file_path() {
+    local pane_id=$(get_current_pane_id)
     
+    if [ -z "$pane_id" ]; then
+        # フォールバック：従来の共有ファイル
+        echo "workspace/current_project_id.txt"
+        return 0
+    fi
+    
+    # ペインIDをファイル名に安全な形式に変換（%0 → pane_0）
+    local safe_pane_id=$(echo "$pane_id" | sed 's/%/pane_/')
+    echo "workspace/current_project_id_${safe_pane_id}.txt"
+}
+
+# プロジェクトIDの取得（ペイン別管理・競合状態を考慮）
+get_current_project_id() {
+    local id_file=$(get_project_id_file_path)
+    
+    # ファイルが存在しない場合は、既存プロジェクトから自動検出を試行
     if [ ! -f "$id_file" ]; then
+        local auto_detected=$(auto_detect_project_from_workspace)
+        if [ -n "$auto_detected" ]; then
+            echo "🔍 自動検出: プロジェクトID '$auto_detected' を発見" >&2
+            # 検出されたプロジェクトIDを設定
+            set_current_project_id "$auto_detected"
+            echo "$auto_detected"
+            return 0
+        fi
+        
         echo ""
         return 1
     fi
@@ -85,6 +127,65 @@ get_current_project_id() {
         # 最後の読み込み値を返す
         echo "$value2"
     fi
+}
+
+# プロジェクトIDの設定（ペイン別管理）
+set_current_project_id() {
+    local project_id="$1"
+    local id_file=$(get_project_id_file_path)
+    
+    if [ -z "$project_id" ]; then
+        echo "❌ エラー: プロジェクトIDが指定されていません" >&2
+        return 1
+    fi
+    
+    mkdir -p workspace
+    
+    # ファイルロックを使用した安全な書き込み
+    if command -v flock &> /dev/null; then
+        (
+            flock -x 200
+            echo "$project_id" > "$id_file"
+        ) 200>"${id_file}.lock"
+    else
+        # 簡易的なロック機構
+        local lock_file="${id_file}.lock"
+        local max_wait=5
+        local waited=0
+        
+        while [ -f "$lock_file" ] && [ $waited -lt $max_wait ]; do
+            sleep 0.1
+            waited=$((waited + 1))
+        done
+        
+        echo $$ > "$lock_file"
+        echo "$project_id" > "$id_file"
+        rm -f "$lock_file"
+    fi
+    
+    echo "✅ プロジェクトID設定完了: $project_id (ペイン: $(get_current_pane_id))" >&2
+    
+    # 統計情報更新
+    mkdir -p tmp
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $(get_current_pane_id) → $project_id" >> tmp/project_assignments.log
+}
+
+# 既存のプロジェクトディレクトリから自動検出
+auto_detect_project_from_workspace() {
+    # workspace/内のディレクトリからプロジェクトIDパターンを検出
+    if [ -d "workspace" ]; then
+        local detected=$(find workspace -maxdepth 1 -type d -name "*_20*_*" | head -1)
+        if [ -n "$detected" ]; then
+            detected=$(basename "$detected")
+        fi
+        if [ -n "$detected" ] && [ "$detected" != "workspace" ]; then
+            echo "$detected"
+            return 0
+        fi
+    fi
+    
+    echo ""
+    return 1
 }
 
 # プロジェクト専用ウィンドウマッピング取得
@@ -207,6 +308,7 @@ show_usage() {
   $0 [エージェント名] [メッセージ] [ウィンドウ名(オプション)]
   $0 auto [メッセージ]              # 相手ペインに自動送信
   $0 --safe-send [エージェント名] [メッセージ]  # 完全混信防止モード ⭐NEW
+  $0 --set-project [プロジェクトID]  # 現在ペインのプロジェクトID設定 ⭐NEW
   $0 --list
   $0 --status
 
@@ -222,8 +324,10 @@ show_usage() {
   --broadcast     全エージェントに一括送信
   --check-cross   プロジェクト間混信チェック ⭐NEW
   --safe-send     完全混信防止モード（自動ウィンドウ修正） ⭐NEW
+  --set-project   現在ペインのプロジェクトID設定 ⭐NEW
 
 使用例:
+  $0 --set-project "game_corp_site_20250629_182527"     # 現在ペインのプロジェクト設定 ⭐NEW
   $0 auto "実装完了しました"                            # 同一ウィンドウの相手に自動送信 ⭐NEW
   $0 quality-manager "要件分析を開始してください"        # 現在のウィンドウのmgrに送信
   $0 developer "実装タスクです: ログイン機能を作成"      # 現在のウィンドウのdevに送信
@@ -231,6 +335,13 @@ show_usage() {
   $0 developer "API実装完了報告" project-2              # 指定ウィンドウのdevに送信
   $0 human "プロジェクトが完了しました"                  # 人間への出力
   $0 --broadcast "システム更新のお知らせ"                # 全エージェントに送信
+
+同時作業モード:
+  各tmuxペインで個別のプロジェクトIDを設定可能 ⭐NEW
+  project-1.0 (mgr) ← todo_app_project
+  project-1.1 (dev) ← todo_app_project  
+  project-2.0 (mgr) ← game_site_project
+  project-2.1 (dev) ← game_site_project
 
 品質保証フロー:
   human → quality-manager → developer → quality-manager → human
@@ -277,14 +388,38 @@ show_status() {
     fi
     echo ""
     
-    # 現在のプロジェクトとウィンドウ
+    # 現在のプロジェクトとウィンドウ（ペイン別対応）
     local current_window=$(get_current_window)
+    local current_pane=$(get_current_pane_id)
     local project_id=$(get_current_project_id)
+    local project_file=$(get_project_id_file_path)
+    
     echo "📁 現在のウィンドウ: $current_window"
+    echo "🖥️  現在のペイン: $current_pane"
+    echo "📄 プロジェクトIDファイル: $project_file"
     if [ -n "$project_id" ]; then
         echo "📝 設定プロジェクトID: $project_id"
+        echo "🎯 推奨ウィンドウ: $(get_project_window_mapping)"
     else
         echo "📝 設定プロジェクトID: なし"
+        echo "💡 設定方法: $0 --set-project \"プロジェクトID\""
+    fi
+    
+    # 他のペインのプロジェクト状況も表示
+    echo ""
+    echo "🔍 全ペインのプロジェクト状況:"
+    for pane_file in workspace/current_project_id_pane_*.txt; do
+        if [ -f "$pane_file" ]; then
+            local pane_name=$(basename "$pane_file" | sed 's/current_project_id_\(.*\)\.txt/\1/')
+            local pane_project=$(cat "$pane_file" 2>/dev/null | tr -d '\n\r')
+            echo "  $pane_name: $pane_project"
+        fi
+    done
+    
+    # 従来の共有ファイルも確認
+    if [ -f "workspace/current_project_id.txt" ]; then
+        local shared_project=$(cat "workspace/current_project_id.txt" 2>/dev/null | tr -d '\n\r')
+        echo "  共有ファイル: $shared_project"
     fi
     echo ""
     
@@ -702,6 +837,44 @@ main() {
     # --check-crossオプション
     if [[ "$1" == "--check-cross" ]]; then
         check_cross_project_communication
+        exit 0
+    fi
+    
+    # --set-projectオプション（プロジェクトID設定）
+    if [[ "$1" == "--set-project" ]]; then
+        if [[ $# -lt 2 ]]; then
+            echo "❌ エラー: プロジェクトIDが指定されていません"
+            echo "使用例: $0 --set-project \"game_corp_site_20250629_182527\""
+            echo ""
+            echo "既存プロジェクト自動検出:"
+            local detected=$(auto_detect_project_from_workspace)
+            if [ -n "$detected" ]; then
+                echo "  検出されたプロジェクト: $detected"
+                echo "  設定する場合: $0 --set-project \"$detected\""
+            else
+                echo "  プロジェクトが見つかりませんでした"
+            fi
+            exit 1
+        fi
+        
+        local project_id="$2"
+        echo "🔧 プロジェクトID設定モード"
+        echo "   対象ペイン: $(get_current_pane_id)"
+        echo "   プロジェクトID: $project_id"
+        
+        set_current_project_id "$project_id"
+        
+        # 設定確認
+        local current_id=$(get_current_project_id)
+        if [ "$current_id" = "$project_id" ]; then
+            echo "✅ プロジェクトID設定成功"
+            echo "   ファイル: $(get_project_id_file_path)"
+            echo "   推奨ウィンドウ: $(get_project_window_mapping)"
+        else
+            echo "❌ プロジェクトID設定失敗"
+            exit 1
+        fi
+        
         exit 0
     fi
     
