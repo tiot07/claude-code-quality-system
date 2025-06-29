@@ -26,16 +26,16 @@ create_new_project_window() {
     # プロジェクト名の決定ロジック
     local project_name
     if [ -n "$custom_name" ]; then
-        # カスタム名が指定された場合は、project-N 形式で統一
-        project_name="project-${project_num}"
-        log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name} (別名: ${custom_name})..."
+        # カスタム名が指定された場合はそれをウィンドウ名に使用
+        project_name="${custom_name}"
+        log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
     else
         # カスタム名がない場合は project-N 形式
         project_name="project-${project_num}"
         log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
     fi
     
-    # 新しいウィンドウを作成（統一された命名規則）
+    # 新しいウィンドウを作成（カスタム名または project-N 形式）
     tmux new-window -t claude-qa-system -n "${project_name}"
     
     # 左右に分割（QualityManager | Developer）
@@ -43,40 +43,27 @@ create_new_project_window() {
     
     # 左ペイン（QualityManager）設定
     tmux send-keys -t claude-qa-system:${project_name}.0 "cd $(pwd)" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '=== QualityManager エージェント ==='" C-m
-    if [ -n "$custom_name" ]; then
-        tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name} (${custom_name})'" C-m
-    else
-        tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name}'" C-m
-    fi
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 要件分析と品質チェックを担当'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 実装結果の品質保証を実施'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '============================'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo ''" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(QualityManager) \w\$ '" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "clear" C-m
+    # Claude起動と役割設定
+    tmux send-keys -t claude-qa-system:${project_name}.0 "claude --dangerously-skip-permissions" C-m
+    sleep 3
+    tmux send-keys -t claude-qa-system:${project_name}.0 "あなたはquality-managerです。agents/quality-manager.mdの指示書に従って要件を受け付けてください。Developerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で右ペインに直接送信できます。" C-m
     
     # 右ペイン（Developer）設定
     tmux send-keys -t claude-qa-system:${project_name}.1 "cd $(pwd)" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '=== Developer エージェント ==='" C-m
-    if [ -n "$custom_name" ]; then
-        tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name} (${custom_name})'" C-m
-    else
-        tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name}'" C-m
-    fi
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- 高品質な実装を担当'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- テスト駆動開発を実践'" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '========================='" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo ''" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(Developer) \w\$ '" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "clear" C-m
+    # Claude起動と役割設定（少し遅らせて起動）
+    sleep 2
+    tmux send-keys -t claude-qa-system:${project_name}.1 "claude --dangerously-skip-permissions" C-m
+    sleep 3
+    tmux send-keys -t claude-qa-system:${project_name}.1 "あなたはdeveloperです。agents/developer.mdの指示書に従って実装作業を行ってください。QualityManagerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で左ペインに直接送信できます。" C-m
     
     # デフォルトではQualityManagerペインを選択
     tmux select-pane -t claude-qa-system:${project_name}.0
     
-    if [ -n "$custom_name" ]; then
-        log_success "✅ プロジェクトウィンドウ作成完了: ${project_name} (${custom_name})"
-    else
-        log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
-    fi
+    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
 }
 
 echo "🎯 Claude Code 品質保証システム 環境構築"
@@ -126,23 +113,22 @@ tmux split-window -h -t claude-qa-system:project-1
 
 # 左ペイン（QualityManager）設定
 tmux send-keys -t claude-qa-system:project-1.0 "cd $(pwd)" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo '=== QualityManager エージェント ==='" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo '品質管理責任者 - project-1'" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo '- 要件分析と品質チェックを担当'" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo '- 実装結果の品質保証を実施'" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo '============================'" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo ''" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "export PS1='(QualityManager) \w\$ '" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "clear" C-m
+# Claude起動と役割設定
+tmux send-keys -t claude-qa-system:project-1.0 "claude --dangerously-skip-permissions" C-m
+sleep 3
+tmux send-keys -t claude-qa-system:project-1.0 "あなたはquality-managerです。agents/quality-manager.mdの指示書に従って要件を受け付けてください。Developerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で右ペインに直接送信できます。" C-m
 
 # 右ペイン（Developer）設定
 tmux send-keys -t claude-qa-system:project-1.1 "cd $(pwd)" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo '=== Developer エージェント ==='" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo 'エンジニア - project-1'" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo '- 高品質な実装を担当'" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo '- テスト駆動開発を実践'" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo '========================='" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo ''" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "export PS1='(Developer) \w\$ '" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "clear" C-m
+# Claude起動と役割設定（少し遅らせて起動）
+sleep 2
+tmux send-keys -t claude-qa-system:project-1.1 "claude --dangerously-skip-permissions" C-m
+sleep 3
+tmux send-keys -t claude-qa-system:project-1.1 "あなたはdeveloperです。agents/developer.mdの指示書に従って実装作業を行ってください。QualityManagerとの通信は \`./scripts/msg.sh \"[メッセージ]\"\` で左ペインに直接送信できます。" C-m
 
 # デフォルトではQualityManagerペインを選択
 tmux select-pane -t claude-qa-system:project-1.0
@@ -260,17 +246,13 @@ echo ""
 echo "  1. 🔗 セッション接続:"
 echo "     tmux attach-session -t claude-qa-system"
 echo ""
-echo "  2. 🤖 Claude Code起動:"
-echo "     # 左ペイン（QualityManager）でClaude Code起動:"
-echo "     claude --dangerously-skip-permissions"
-echo ""
-echo "     # 右ペイン（Developer）に移動してClaude Code起動:"
-echo "     # Ctrl+B → O で右ペインに移動"
-echo "     claude --dangerously-skip-permissions"
+echo "  2. ✅ Claude Code自動起動完了"
+echo "     QualityManagerとDeveloperが自動で起動し、役割設定済みです"
 echo ""
 echo "  3. 📁 追加プロジェクト作成:"
-echo "     ./scripts/setup.sh --add-project 2 webapp"
-echo "     ./scripts/setup.sh --add-project 3 api-service"
+echo "     ./scripts/setup.sh --add-project 2 webapp       # ウィンドウ名: webapp"
+echo "     ./scripts/setup.sh --add-project 3 api-service  # ウィンドウ名: api-service"
+echo "     ./scripts/setup.sh --add-project 4              # ウィンドウ名: project-4"
 echo ""
 echo "  3. 📜 指示書確認:"
 echo "     QualityManager: agents/quality-manager.md"
@@ -278,11 +260,8 @@ echo "     Developer: agents/developer.md"
 echo "     システム構造: CLAUDE.md（作成予定）"
 echo ""
 echo "  4. 🚀 システム開始:"
-echo "     左ペイン（QualityManager）に以下のメッセージを送信:"
-echo "     「あなたはquality-managerです。指示書に従って要件を受け付けてください。」"
-echo ""
-echo "     右ペイン（Developer）に以下のメッセージを送信:"
-echo "     「あなたはdeveloperです。指示書に従って実装作業を行ってください。」"
+echo "     Claude Codeは自動起動・役割設定済みです"
+echo "     QualityManagerに直接要件を伝えてプロジェクトを開始できます"
 echo ""
 echo "  5. 📊 状態確認:"
 echo "     ./scripts/system-status.sh  # システム状態確認（作成予定）"
@@ -291,10 +270,15 @@ echo ""
 echo "💡 使用方法:"
 echo "==========="
 echo "1. QualityManagerに要件を伝える"
-echo "2. QualityManagerがDeveloperに実装指示"
+echo "2. Manager-Developer間で直接通信 (./scripts/msg.sh)"
 echo "3. Developerが実装完了報告"
 echo "4. QualityManagerが品質チェック実行"
 echo "5. 合格なら完了、不合格なら修正指示"
+echo ""
+echo "🤝 新機能: 直接通信"
+echo "  - 位置確認: ./scripts/where-am-i.sh"
+echo "  - 簡単送信: ./scripts/msg.sh \"[メッセージ]\""
+echo "  - 詳細送信: ./scripts/send-to-partner.sh \"[メッセージ]\""
 echo ""
 
 echo "🔧 トラブルシューティング:"

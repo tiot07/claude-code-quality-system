@@ -25,7 +25,20 @@ Claude Code同士が協働して品質保証を行う自動化システム
 5. 合格 → 人間報告 / 不合格 → Developer修正指示
 
 ## コミュニケーション
-### メッセージ送信
+### 🤝 新機能: 直接通信（推奨）
+同一tmuxウィンドウ内での高速通信
+```bash
+# 位置確認
+./scripts/where-am-i.sh
+
+# 簡単送信（推奨）
+./scripts/msg.sh "[メッセージ]"
+
+# 詳細送信（ログ付き）
+./scripts/send-to-partner.sh "[メッセージ]"
+```
+
+### 従来のメッセージ送信
 ```bash
 ./scripts/agent-send.sh [相手] "[メッセージ]"
 ```
