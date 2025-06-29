@@ -20,26 +20,44 @@ get_current_window() {
     fi
 }
 
+# プロジェクトIDの取得
+get_current_project_id() {
+    if [ -f workspace/current_project_id.txt ]; then
+        cat workspace/current_project_id.txt | tr -d '\n\r'
+    else
+        echo ""
+    fi
+}
+
 # エージェント→tmuxターゲット マッピング
 get_agent_target() {
     local agent="$1"
     local window_name="$2"
+    local project_id=$(get_current_project_id)
     
-    # ウィンドウ名が指定されていない場合は現在のウィンドウを自動検出
+    # ウィンドウ名が指定されていない場合は現在のプロジェクトIDをウィンドウ名として使用
     if [ -z "$window_name" ]; then
-        window_name=$(get_current_window)
-        if [ -z "$window_name" ]; then
-            echo "❌ エラー: 現在のウィンドウを検出できません。ウィンドウ名を指定してください。"
-            echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" webapp"
-            echo "利用可能ウィンドウ:"
-            if tmux has-session -t claude-qa-system 2>/dev/null; then
-                tmux list-windows -t claude-qa-system -F "  #{window_name}"
+        if [ -n "$project_id" ]; then
+            window_name="$project_id"
+        else
+            window_name=$(get_current_window)
+            if [ -z "$window_name" ]; then
+                echo "❌ エラー: プロジェクトIDまたはウィンドウ名を指定してください。"
+                echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project_name"
+                echo "現在のプロジェクトID設定: workspace/current_project_id.txt"
+                return 1
             fi
-            return 1
         fi
     fi
     
-    # tmuxターゲット構築時にウィンドウ名を正確に指定
+    # プロジェクト間混信防止のため、プロジェクトIDを含むウィンドウ名を強制
+    if [ -n "$project_id" ] && [ "$window_name" != "$project_id" ]; then
+        echo "⚠️  警告: 指定ウィンドウ名 '$window_name' が現在のプロジェクトID '$project_id' と異なります"
+        echo "   プロジェクト間混信を防止するため、プロジェクトID '$project_id' を使用します"
+        window_name="$project_id"
+    fi
+    
+    # tmuxターゲット構築時にプロジェクトIDを含むウィンドウ名を使用
     case "$agent" in
         "quality-manager") 
             # 左ペイン（QualityManager）
@@ -156,23 +174,36 @@ show_status() {
     fi
     echo ""
     
-    # 最近のログ
+    # 最近のログ（プロジェクト別表示）
+    local project_id=$(get_current_project_id)
     echo "📝 最近のメッセージ (直近5件):"
-    if [ -f logs/send_log.txt ]; then
-        tail -5 logs/send_log.txt
+    if [ -n "$project_id" ] && [ -f "logs/send_log_${project_id}.txt" ]; then
+        echo "  現在のプロジェクト ($project_id):"
+        tail -5 "logs/send_log_${project_id}.txt"
+    elif [ -f logs/send_log_all.txt ]; then
+        echo "  全プロジェクト統合ログ:"
+        tail -5 logs/send_log_all.txt
     else
         echo "  ログファイルなし"
     fi
 }
 
-# ログ記録
+# ログ記録（プロジェクト別に分離）
 log_send() {
     local agent="$1"
     local message="$2"
+    local project_id=$(get_current_project_id)
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     mkdir -p logs
-    echo "[$timestamp] $agent: SENT - \"$message\"" >> logs/send_log.txt
+    
+    # プロジェクト別ログファイル
+    if [ -n "$project_id" ]; then
+        echo "[$timestamp] $agent: SENT - \"$message\"" >> "logs/send_log_${project_id}.txt"
+    fi
+    
+    # 統合ログファイル（全プロジェクト共通）
+    echo "[$timestamp] [$project_id] $agent: SENT - \"$message\"" >> logs/send_log_all.txt
     
     # システム統計更新
     echo $timestamp > tmp/last_message_time.txt
@@ -181,11 +212,13 @@ log_send() {
 # 人間への出力（特別処理）
 send_to_human() {
     local message="$1"
+    local project_id=$(get_current_project_id)
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     echo ""
     echo "=================================================="
     echo "📢 Quality Assurance System からのメッセージ"
+    echo "プロジェクト: $project_id"
     echo "時刻: $timestamp"
     echo "=================================================="
     echo ""
@@ -194,9 +227,12 @@ send_to_human() {
     echo "=================================================="
     echo ""
     
-    # 人間向けログ記録
+    # 人間向けログ記録（プロジェクト別に分離）
     mkdir -p logs
-    echo "[$timestamp] SYSTEM → HUMAN: $message" >> logs/human_notifications.txt
+    if [ -n "$project_id" ]; then
+        echo "[$timestamp] SYSTEM → HUMAN: $message" >> "logs/human_notifications_${project_id}.txt"
+    fi
+    echo "[$timestamp] [$project_id] SYSTEM → HUMAN: $message" >> logs/human_notifications_all.txt
 }
 
 # 全エージェントに一括送信
@@ -237,8 +273,12 @@ broadcast_message() {
     # 人間にも通知
     send_to_human "システム一括送信: $message"
     
-    # ブロードキャストログ記録
-    echo "[$timestamp] BROADCAST: $message" >> logs/broadcast_log.txt
+    # ブロードキャストログ記録（プロジェクト別分離）
+    local project_id=$(get_current_project_id)
+    if [ -n "$project_id" ]; then
+        echo "[$timestamp] BROADCAST: $message" >> "logs/broadcast_log_${project_id}.txt"
+    fi
+    echo "[$timestamp] [$project_id] BROADCAST: $message" >> logs/broadcast_log_all.txt
 }
 
 # メッセージ送信
@@ -397,9 +437,10 @@ main() {
     # エージェント状態更新
     update_agent_status "$agent_name"
     
-    # 実際に使用されたウィンドウ名を取得
+    # 実際に使用されたウィンドウ名とプロジェクトIDを取得
     local actual_window=$(echo "$target" | cut -d':' -f2 | cut -d'.' -f1)
-    echo "✅ 送信完了: $agent_name ($actual_window) に '$message'"
+    local project_id=$(get_current_project_id)
+    echo "✅ 送信完了: $agent_name (プロジェクト: $project_id, ウィンドウ: $actual_window) に送信"
     
     # 品質保証フロー情報
     case "$agent_name" in
