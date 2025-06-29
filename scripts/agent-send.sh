@@ -525,7 +525,7 @@ send_message() {
 
 【重要】このメッセージを受信した場合は以下を確認してください：
 1. 受信したプロジェクトID: ${project_id}
-2. あなたの現在のプロジェクトID: workspace/current_project_id.txt を確認
+2. あなたの現在のプロジェクトID: tmuxウィンドウから自動検出されます
 3. 異なる場合は以下のエラーメッセージで応答してください：
 
 \`\`\`
@@ -745,7 +745,7 @@ main() {
         
         if [ -z "$project_id" ]; then
             echo "❌ エラー: プロジェクトIDが設定されていません"
-            echo "workspace/current_project_id.txt を確認してください"
+            echo "プロジェクトIDはウィンドウ名から自動検出されます"
             exit 1
         fi
         

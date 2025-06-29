@@ -80,8 +80,8 @@ assign_project() {
     
     mv "$temp_file" "$MAPPING_FILE"
     
-    # ウィンドウ別のプロジェクトIDファイルを作成
-    echo "$project_id" > "workspace/current_project_id_${window_name}.txt"
+    # プロジェクトIDはウィンドウ名から自動生成されるため、ファイル作成は不要
+    # echo "$project_id" > "workspace/current_project_id_${window_name}.txt"  # 廃止
     
     echo -e "${GREEN}✅ プロジェクト割り当て完了${NC}"
     echo "  プロジェクト: $project_id"
@@ -119,8 +119,8 @@ remove_project() {
     
     mv "$temp_file" "$MAPPING_FILE"
     
-    # プロジェクトIDファイルを削除
-    rm -f "workspace/current_project_id_${window_name}.txt"
+    # プロジェクトIDファイルの削除は不要（ファイルベース管理を廃止）
+    # rm -f "workspace/current_project_id_${window_name}.txt"  # 廃止
     
     echo -e "${GREEN}✅ プロジェクト削除完了${NC}"
     echo "  削除されたプロジェクト: $project_id"
@@ -150,14 +150,15 @@ check_project() {
         fi
     fi
     
-    # プロジェクトIDファイル
-    local id_file="workspace/current_project_id_${window_name}.txt"
-    if [ -f "$id_file" ]; then
+    # プロジェクトID取得（ウィンドウ名ベース）
+    source scripts/agent-send.sh
+    local auto_project_id=$(get_current_project_id)
+    if [ -n "$auto_project_id" ]; then
         echo ""
-        echo "プロジェクトIDファイル: $id_file"
-        echo "内容: $(cat "$id_file")"
+        echo "自動生成プロジェクトID: $auto_project_id"
+        echo "（ウィンドウ名ベース自動管理）"
     else
-        echo -e "${YELLOW}プロジェクトIDファイルなし${NC}"
+        echo -e "${YELLOW}プロジェクトID自動生成なし${NC}"
     fi
     
     # ワークスペースディレクトリ
@@ -222,24 +223,11 @@ cleanup() {
     echo -e "${BLUE}=== クリーンアップ実行 ===${NC}"
     echo ""
     
-    # 孤立したプロジェクトIDファイルを検出
-    for id_file in workspace/current_project_id_*.txt; do
+    # 既存の孤立したプロジェクトIDファイルをクリーンアップ
+    for id_file in workspace/current_project_id*.txt; do
         if [ -f "$id_file" ]; then
-            local window_name=$(basename "$id_file" | sed 's/current_project_id_\(.*\)\.txt/\1/')
-            
-            # ペインIDファイルはスキップ
-            if [[ "$window_name" =~ ^pane_ ]]; then
-                continue
-            fi
-            
-            # マッピングに存在しないファイルを削除
-            if [ -f "$MAPPING_FILE" ]; then
-                local mapped=$(jq -r ".mappings.\"$window_name\" // empty" "$MAPPING_FILE")
-                if [ -z "$mapped" ] || [ "$mapped" = "null" ]; then
-                    echo "削除: $id_file (マッピングなし)"
-                    rm -f "$id_file"
-                fi
-            fi
+            echo "削除: $id_file (ファイルベース管理を廃止)"
+            rm -f "$id_file"
         fi
     done
     

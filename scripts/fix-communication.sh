@@ -17,11 +17,14 @@ get_project_id_for_window() {
         fi
     fi
     
-    # ウィンドウ別IDファイルから取得
-    if [ -f "workspace/current_project_id_${window_name}.txt" ]; then
-        cat "workspace/current_project_id_${window_name}.txt"
-        return 0
-    fi
+    # ウィンドウ名から自動生成（ファイルベース管理廃止）
+    # if [ -f "workspace/current_project_id_${window_name}.txt" ]; then
+    #     cat "workspace/current_project_id_${window_name}.txt"
+    #     return 0
+    # fi
+    
+    # フォールバック: ウィンドウ名ベースの自動生成
+    echo "${window_name}_$(date +%Y%m%d_%H%M%S)"
     
     echo ""
     return 1

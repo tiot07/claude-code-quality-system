@@ -22,12 +22,21 @@ log_warning() {
     echo -e "\033[1;33m[WARNING]\033[0m $1"
 }
 
-# プロジェクトID取得
-if [ -f workspace/current_project_id.txt ]; then
-    PROJECT_ID=$(./scripts/get-project-id.sh)
-else
-    log_error "プロジェクトIDが見つかりません"
-    exit 1
+# プロジェクトID取得（ウィンドウベース自動検出）
+PROJECT_ID=$(./scripts/get-project-id.sh)
+if [ -z "$PROJECT_ID" ]; then
+    log_error "プロジェクトIDを取得できません。tmuxウィンドウから自動生成を試行します"
+    
+    # agent-send.shの関数を利用
+    source ./scripts/agent-send.sh
+    PROJECT_ID=$(get_current_project_id)
+    
+    if [ -z "$PROJECT_ID" ]; then
+        log_error "プロジェクトIDの自動生成に失敗しました"
+        exit 1
+    fi
+    
+    log_info "自動生成されたプロジェクトID: $PROJECT_ID"
 fi
 
 PROJECT_DIR="workspace/$PROJECT_ID"
