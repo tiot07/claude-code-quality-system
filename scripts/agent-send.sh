@@ -135,7 +135,7 @@ get_agent_target() {
         # プロジェクトIDがある場合は専用ウィンドウマッピングを使用
         if [ -n "$project_id" ]; then
             window_name=$(get_project_window_mapping)
-            echo "🔒 プロジェクト分離: ${project_id} → ウィンドウ ${window_name}"
+            echo "🔒 プロジェクト分離: ${project_id} → ウィンドウ ${window_name}" >&2
         else
             # プロジェクトIDがない場合は現在のウィンドウを使用
             window_name=$(get_current_window)
@@ -156,10 +156,10 @@ get_agent_target() {
     if [ -n "$project_id" ]; then
         local recommended_window=$(get_project_window_mapping)
         if [ "$window_name" != "$recommended_window" ]; then
-            echo "🚨 プロジェクト混信防止: 自動修正実行"
-            echo "   現在プロジェクト: $project_id"
-            echo "   指定ウィンドウ: $window_name → $recommended_window (強制変更)"
-            echo "   理由: プロジェクト間混信を根本的に防止"
+            echo "🚨 プロジェクト混信防止: 自動修正実行" >&2
+            echo "   現在プロジェクト: $project_id" >&2
+            echo "   指定ウィンドウ: $window_name → $recommended_window (強制変更)" >&2
+            echo "   理由: プロジェクト間混信を根本的に防止" >&2
             
             # 強制的に推奨ウィンドウに変更
             window_name="$recommended_window"
@@ -177,7 +177,7 @@ get_agent_target() {
             echo "❌ エラー: 相手エージェントを自動検出できません。明示的に指定してください。"
             return 1
         fi
-        echo "🤖 自動検出: 相手エージェント '$agent' を選択しました"
+        echo "🤖 自動検出: 相手エージェント '$agent' を選択しました" >&2
     fi
     
     # tmuxターゲット構築
@@ -465,9 +465,24 @@ send_message() {
         while [ -f "$lock_file" ]; do
             # 古いロックファイルをチェック（10秒以上前なら削除）
             if [ -f "$lock_file" ]; then
-                local lock_age=$(($(date +%s) - $(stat -f%m "$lock_file" 2>/dev/null || stat -c%Y "$lock_file" 2>/dev/null || echo 0)))
+                local current_time=$(date +%s)
+                local lock_time
+                
+                # macOS vs Linux の stat コマンドの違いに対応
+                if stat -f%m "$lock_file" &>/dev/null; then
+                    # macOS
+                    lock_time=$(stat -f%m "$lock_file" 2>/dev/null || echo 0)
+                elif stat -c%Y "$lock_file" &>/dev/null; then
+                    # Linux
+                    lock_time=$(stat -c%Y "$lock_file" 2>/dev/null || echo 0)
+                else
+                    # statが利用できない場合のフォールバック
+                    lock_time=0
+                fi
+                
+                local lock_age=$((current_time - lock_time))
                 if [ $lock_age -gt 10 ]; then
-                    echo "⚠️  古いロックファイルを削除: $lock_file"
+                    echo "⚠️  古いロックファイルを削除: $lock_file" >&2
                     rm -f "$lock_file"
                     break
                 fi
@@ -478,7 +493,7 @@ send_message() {
                 return 1
             fi
             
-            echo "⏳ 他のプロセスの送信完了を待機中... ($waited秒)"
+            echo "⏳ 他のプロセスの送信完了を待機中... ($waited秒)" >&2
             sleep 1
             waited=$((waited + 1))
         done
