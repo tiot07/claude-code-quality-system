@@ -39,11 +39,22 @@ get_agent_target() {
         fi
     fi
     
+    # tmuxターゲット構築時にウィンドウ名を正確に指定
     case "$agent" in
-        "quality-manager") echo "claude-qa-system:${window_name}.0" ;;  # 左ペイン
-        "developer") echo "claude-qa-system:${window_name}.1" ;;        # 右ペイン
-        "human") echo "human" ;;  # 特別ターゲット（人間への出力）
-        *) echo "" ;;
+        "quality-manager") 
+            # 左ペイン（QualityManager）
+            echo "claude-qa-system:${window_name}.0"
+            ;;
+        "developer") 
+            # 右ペイン（Developer）
+            echo "claude-qa-system:${window_name}.1"
+            ;;
+        "human") 
+            echo "human"  # 特別ターゲット（人間への出力）
+            ;;
+        *) 
+            echo "" 
+            ;;
     esac
 }
 
@@ -250,14 +261,36 @@ send_message() {
     sleep 0.5
 }
 
-# ターゲット存在確認
+# ターゲット存在確認（ウィンドウとペインの両方を検証）
 check_target() {
     local target="$1"
     local session_name="${target%%:*}"
+    local window_and_pane="${target##*:}"
+    local window_name="${window_and_pane%%.*}"
+    local pane_number="${window_and_pane##*.}"
     
+    # セッション存在確認
     if ! tmux has-session -t "$session_name" 2>/dev/null; then
         echo "❌ セッション '$session_name' が見つかりません"
         echo "   ./scripts/setup.sh を実行してセッションを作成してください"
+        return 1
+    fi
+    
+    # ウィンドウ存在確認
+    if ! tmux list-windows -t "$session_name" -F "#{window_name}" | grep -q "^${window_name}$"; then
+        echo "❌ ウィンドウ '$window_name' が見つかりません"
+        echo "   利用可能ウィンドウ:"
+        tmux list-windows -t "$session_name" -F "    #{window_name}"
+        echo "   新しいプロジェクトを追加する場合:"
+        echo "   ./scripts/setup.sh --add-project 2 $window_name"
+        return 1
+    fi
+    
+    # ペイン存在確認
+    if ! tmux list-panes -t "${session_name}:${window_name}" -F "#{pane_index}" | grep -q "^${pane_number}$"; then
+        echo "❌ ペイン '${pane_number}' が見つかりません（ウィンドウ: $window_name）"
+        echo "   利用可能ペイン:"
+        tmux list-panes -t "${session_name}:${window_name}" -F "    #{pane_index}: #{pane_title}"
         return 1
     fi
     

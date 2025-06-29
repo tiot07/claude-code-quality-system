@@ -18,25 +18,40 @@ log_warning() {
     echo -e "\033[1;33m[WARNING]\033[0m $1"
 }
 
-# 新しいプロジェクト追加機能
+# 新しいプロジェクト追加機能（命名規則統一）
 create_new_project_window() {
     local project_num=$1
-    local project_name=${2:-"project-${project_num}"}
+    local custom_name=$2
     
-    log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
+    # プロジェクト名の決定ロジック
+    local project_name
+    if [ -n "$custom_name" ]; then
+        # カスタム名が指定された場合は、project-N 形式で統一
+        project_name="project-${project_num}"
+        log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name} (別名: ${custom_name})..."
+    else
+        # カスタム名がない場合は project-N 形式
+        project_name="project-${project_num}"
+        log_info "📁 新しいプロジェクトウィンドウ作成: ${project_name}..."
+    fi
     
-    # 新しいウィンドウを作成
+    # 新しいウィンドウを作成（統一された命名規則）
     tmux new-window -t claude-qa-system -n "${project_name}"
     
-    # 左右に分割
+    # 左右に分割（QualityManager | Developer）
     tmux split-window -h -t claude-qa-system:${project_name}
     
     # 左ペイン（QualityManager）設定
     tmux send-keys -t claude-qa-system:${project_name}.0 "cd $(pwd)" C-m
     tmux send-keys -t claude-qa-system:${project_name}.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
     tmux send-keys -t claude-qa-system:${project_name}.0 "echo '=== QualityManager エージェント ==='" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name}'" C-m
+    if [ -n "$custom_name" ]; then
+        tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name} (${custom_name})'" C-m
+    else
+        tmux send-keys -t claude-qa-system:${project_name}.0 "echo '品質管理責任者 - ${project_name}'" C-m
+    fi
     tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 要件分析と品質チェックを担当'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.0 "echo '- 実装結果の品質保証を実施'" C-m
     tmux send-keys -t claude-qa-system:${project_name}.0 "echo '============================'" C-m
     tmux send-keys -t claude-qa-system:${project_name}.0 "echo ''" C-m
     
@@ -44,15 +59,24 @@ create_new_project_window() {
     tmux send-keys -t claude-qa-system:${project_name}.1 "cd $(pwd)" C-m
     tmux send-keys -t claude-qa-system:${project_name}.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
     tmux send-keys -t claude-qa-system:${project_name}.1 "echo '=== Developer エージェント ==='" C-m
-    tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name}'" C-m
+    if [ -n "$custom_name" ]; then
+        tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name} (${custom_name})'" C-m
+    else
+        tmux send-keys -t claude-qa-system:${project_name}.1 "echo 'エンジニア - ${project_name}'" C-m
+    fi
     tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- 高品質な実装を担当'" C-m
+    tmux send-keys -t claude-qa-system:${project_name}.1 "echo '- テスト駆動開発を実践'" C-m
     tmux send-keys -t claude-qa-system:${project_name}.1 "echo '========================='" C-m
     tmux send-keys -t claude-qa-system:${project_name}.1 "echo ''" C-m
     
     # デフォルトではQualityManagerペインを選択
     tmux select-pane -t claude-qa-system:${project_name}.0
     
-    log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
+    if [ -n "$custom_name" ]; then
+        log_success "✅ プロジェクトウィンドウ作成完了: ${project_name} (${custom_name})"
+    else
+        log_success "✅ プロジェクトウィンドウ作成完了: ${project_name}"
+    fi
 }
 
 echo "🎯 Claude Code 品質保証システム 環境構築"
@@ -94,7 +118,7 @@ echo ""
 # STEP 2: メインセッション作成（プロジェクト1）
 log_info "🎯 メインセッション作成開始（プロジェクト1）..."
 
-# メインセッション作成
+# メインセッション作成 - ウィンドウ名を統一（project-1形式）
 tmux new-session -d -s claude-qa-system -n "project-1"
 
 # 左右に分割（QualityManager | Developer）
@@ -104,7 +128,7 @@ tmux split-window -h -t claude-qa-system:project-1
 tmux send-keys -t claude-qa-system:project-1.0 "cd $(pwd)" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "export PS1='(\[\033[1;32m\]QualityManager\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "echo '=== QualityManager エージェント ==='" C-m
-tmux send-keys -t claude-qa-system:project-1.0 "echo '品質管理責任者 - プロジェクト1'" C-m
+tmux send-keys -t claude-qa-system:project-1.0 "echo '品質管理責任者 - project-1'" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "echo '- 要件分析と品質チェックを担当'" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "echo '- 実装結果の品質保証を実施'" C-m
 tmux send-keys -t claude-qa-system:project-1.0 "echo '============================'" C-m
@@ -114,7 +138,7 @@ tmux send-keys -t claude-qa-system:project-1.0 "echo ''" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "cd $(pwd)" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "export PS1='(\[\033[1;34m\]Developer\[\033[0m\]) \[\033[1;36m\]\w\[\033[0m\]\$ '" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "echo '=== Developer エージェント ==='" C-m
-tmux send-keys -t claude-qa-system:project-1.1 "echo 'エンジニア - プロジェクト1'" C-m
+tmux send-keys -t claude-qa-system:project-1.1 "echo 'エンジニア - project-1'" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "echo '- 高品質な実装を担当'" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "echo '- テスト駆動開発を実践'" C-m
 tmux send-keys -t claude-qa-system:project-1.1 "echo '========================='" C-m
@@ -123,7 +147,7 @@ tmux send-keys -t claude-qa-system:project-1.1 "echo ''" C-m
 # デフォルトではQualityManagerペインを選択
 tmux select-pane -t claude-qa-system:project-1.0
 
-log_success "✅ メインセッション作成完了（プロジェクト1）"
+log_success "✅ メインセッション作成完了（project-1）"
 echo ""
 
 # STEP 3: この部分は既に上部で処理済み（重複削除）
