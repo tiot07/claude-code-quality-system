@@ -60,26 +60,129 @@ TODOアプリを作成してください。
 
 ### 5. 複数プロジェクト同時実行（上級者向け）
 
-複数のプロジェクトを並列で実行可能:
+⚠️ **重要**: 環境構築（手順1-3）は一度だけ実行すれば十分です。複数プロジェクトでも同じtmuxセッションを共有します。
 
+#### 前提条件
+1. 基本環境構築が完了していること（手順1-3）
+2. QualityManagerとDeveloperのtmuxセッションが起動していること
+
+#### 複数プロジェクト実行手順
+
+**ステップ1: 新しいターミナルで並列実行開始**
 ```bash
-# プロジェクト1を開始
+# 新しいターミナルウィンドウを開く
+# システムディレクトリに移動
+cd claude-code-quality-system
+
+# プロジェクト1を開始（バックグラウンド実行）
 echo "webapp_$(date +%Y%m%d_%H%M%S)" > workspace/current_project_id.txt
 ./scripts/feedback-loop.sh --auto-run &
 PROJECT1_PID=$!
 
-# プロジェクト2を開始（別ディレクトリで）
+# プロジェクト2を開始（バックグラウンド実行）
 echo "api_$(date +%Y%m%d_%H%M%S)" > workspace/current_project_id.txt  
 ./scripts/feedback-loop.sh --auto-run &
 PROJECT2_PID=$!
 
-# 実行状況確認
-echo "プロジェクト1 PID: $PROJECT1_PID"
-echo "プロジェクト2 PID: $PROJECT2_PID"
+# プロジェクト3を開始（バックグラウンド実行）
+echo "mobile_$(date +%Y%m%d_%H%M%S)" > workspace/current_project_id.txt
+./scripts/feedback-loop.sh --auto-run &
+PROJECT3_PID=$!
+```
+
+**ステップ2: 実行状況監視**
+```bash
+# プロセス一覧確認
+echo "実行中のプロジェクト:"
+echo "プロジェクト1 (WebApp): PID $PROJECT1_PID"
+echo "プロジェクト2 (API): PID $PROJECT2_PID"  
+echo "プロジェクト3 (Mobile): PID $PROJECT3_PID"
+
+# バックグラウンドジョブ確認
 jobs
 
-# 必要に応じて停止
-# kill $PROJECT1_PID $PROJECT2_PID
+# システム全体の状況確認
+./scripts/agent-send.sh --status
+```
+
+**ステップ3: 各プロジェクトに要件を送信**
+```bash
+# 各プロジェクトIDを取得して要件を送信
+# プロジェクト1: Webアプリ
+echo "webapp_20241201_140000" > workspace/current_project_id.txt
+./scripts/agent-send.sh quality-manager "
+ECサイトの商品検索機能を作成してください。
+- Elasticsearch連携
+- オートコンプリート機能  
+- 検索履歴保存
+- レスポンス時間1秒以内
+"
+
+# プロジェクト2: API
+echo "api_20241201_140100" > workspace/current_project_id.txt
+./scripts/agent-send.sh quality-manager "
+ユーザー管理APIを作成してください。
+- JWT認証
+- CRUD操作
+- バリデーション
+- OpenAPI仕様書
+"
+
+# プロジェクト3: モバイルアプリ
+echo "mobile_20241201_140200" > workspace/current_project_id.txt
+./scripts/agent-send.sh quality-manager "
+TODOアプリを作成してください。
+- タスク追加・削除・完了
+- オフライン対応
+- プッシュ通知
+"
+```
+
+#### セッション管理の詳細
+
+**tmuxセッション構成（変更不要）:**
+```bash
+# 既存のセッションを確認
+tmux ls
+
+# 出力例:
+# developer: 1 windows (created Mon Dec  1 14:00:00 2024)
+# quality-manager: 1 windows (created Mon Dec  1 14:00:00 2024)
+```
+
+**各セッションの役割:**
+- `quality-manager`: 要件分析、品質チェック、修正指示
+- `developer`: 実装、テスト、修正対応
+- **メインターミナル**: 並列実行管理、プロジェクト切り替え
+
+#### プロジェクト管理コマンド
+```bash
+# 現在のプロジェクトID確認
+cat workspace/current_project_id.txt
+
+# 特定プロジェクトの状況確認
+./scripts/quality-check.sh webapp_20241201_140000
+
+# 特定プロジェクトの作業ディレクトリ確認
+ls -la workspace/webapp_20241201_140000/
+
+# 実行中プロセスの停止
+kill $PROJECT1_PID $PROJECT2_PID $PROJECT3_PID
+
+# 全プロジェクトの停止
+pkill -f "feedback-loop.sh"
+```
+
+#### 監視とログ
+```bash
+# 全体ログ監視
+tail -f logs/send_log.txt
+
+# 人間向け通知確認
+tail -f logs/human_notifications.txt
+
+# 特定プロジェクトの品質レポート確認
+cat quality-reports/webapp_20241201_140000_summary.txt
 ```
 
 **並列実行の利点:**
@@ -87,6 +190,7 @@ jobs
 - 複数要件の同時処理
 - リソース有効活用
 - スケーラブルな開発体制
+- 1つの環境で複数プロジェクト管理
 
 ## システム構成
 
