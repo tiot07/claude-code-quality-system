@@ -1,0 +1,27 @@
+{
+  "mappings": {
+    "project-1": {
+      "project_id": "voice-todo-app-20250630-002212",
+      "description": "音声認識TODO管理アプリ",
+      "quality_manager": "pane_0",
+      "developer": "pane_1",
+      "status": "active"
+    },
+    "project-2": {
+      "project_id": "game-corp-website-1751210536",
+      "description": "ゲーム会社コーポレートサイト（リバーシ＆テトリス）",
+      "quality_manager": "pane_0",
+      "developer": "pane_1",
+      "status": "active"
+    },
+    "zsh": {
+      "project_id": "game-corp-website-1751210536",
+      "description": "project-2の別名（ウィンドウ名変更）",
+      "quality_manager": "pane_4",
+      "developer": "pane_5",
+      "status": "active"
+    }
+  },
+  "updated_at": "2025-06-30T00:32:00Z",
+  "version": "2.0"
+}

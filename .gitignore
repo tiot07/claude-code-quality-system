@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project workspace (contains project-specific data)
+workspace/*/node_modules/
+workspace/*/.env
+
+# Build outputs
+dist/
+build/
+out/
+
+# Test coverage
+coverage/
+*.lcov
+
+# Package lock files (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock

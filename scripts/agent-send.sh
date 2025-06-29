@@ -57,17 +57,24 @@ get_current_pane_id() {
 
 # tmuxペイン別のプロジェクトIDファイルパスを取得
 get_project_id_file_path() {
-    local pane_id=$(get_current_pane_id)
+    local current_window=$(get_current_window)
     
-    if [ -z "$pane_id" ]; then
-        # フォールバック：従来の共有ファイル
-        echo "workspace/current_project_id.txt"
+    # ウィンドウ名が取得できた場合は、ウィンドウ別のファイルを使用
+    if [ -n "$current_window" ]; then
+        echo "workspace/current_project_id_${current_window}.txt"
         return 0
     fi
     
-    # ペインIDをファイル名に安全な形式に変換（%0 → pane_0）
-    local safe_pane_id=$(echo "$pane_id" | sed 's/%/pane_/')
-    echo "workspace/current_project_id_${safe_pane_id}.txt"
+    # ペインIDでのフォールバック
+    local pane_id=$(get_current_pane_id)
+    if [ -n "$pane_id" ]; then
+        local safe_pane_id=$(echo "$pane_id" | sed 's/%/pane_/')
+        echo "workspace/current_project_id_${safe_pane_id}.txt"
+        return 0
+    fi
+    
+    # 最終フォールバック：共有ファイル
+    echo "workspace/current_project_id.txt"
 }
 
 # プロジェクトIDの取得（ペイン別管理・競合状態を考慮）
@@ -194,27 +201,33 @@ get_project_window_mapping() {
         return 1
     fi
     
-    # プロジェクトIDに基づく専用ウィンドウマッピング
-    # より信頼性の高いハッシュ計算（MD5ハッシュの最初の8文字を使用）
+    # マッピングファイルから明示的な対応を取得
+    if [ -f "tmp/project_window_mapping.json" ]; then
+        # 各ウィンドウのプロジェクトIDをチェック
+        for window in project-1 project-2 zsh; do
+            local mapped_id=$(jq -r ".mappings.\"$window\".project_id // empty" tmp/project_window_mapping.json 2>/dev/null)
+            if [ "$mapped_id" = "$project_id" ]; then
+                echo "$window"
+                return 0
+            fi
+        done
+    fi
+    
+    # フォールバック：プロジェクトIDに基づく決定的マッピング
     local hash_value
     if command -v md5sum &> /dev/null; then
-        # Linux
         hash_value=$(echo -n "$project_id" | md5sum | cut -c1-8)
     elif command -v md5 &> /dev/null; then
-        # macOS
         hash_value=$(echo -n "$project_id" | md5 | cut -c1-8)
     else
-        # フォールバック：文字列の長さとチェックサムを使用
         hash_value=$(echo -n "$project_id" | cksum | cut -d' ' -f1)
     fi
     
-    # ハッシュ値を数値に変換して、利用可能なウィンドウ数で割った余りを使用
     local hash_num=$(echo "$hash_value" | tr -d 'a-f' | cut -c1-6)
     if [ -z "$hash_num" ]; then
         hash_num=0
     fi
     
-    # project-1 か project-2 に決定的に割り当て
     if [ $((hash_num % 2)) -eq 0 ]; then
         echo "project-1"
     else
@@ -250,21 +263,15 @@ get_agent_target() {
         fi
     fi
     
-    # 🚨 プロジェクト混信完全防止: 強制的にプロジェクト専用ウィンドウを使用
-    if [ -n "$project_id" ]; then
+    # プロジェクトとウィンドウの対応を検証（警告のみ、強制変更なし）
+    if [ -n "$project_id" ] && [ -n "$window_name" ]; then
         local recommended_window=$(get_project_window_mapping)
-        if [ "$window_name" != "$recommended_window" ]; then
-            echo "🚨 プロジェクト混信防止: 自動修正実行" >&2
+        if [ -n "$recommended_window" ] && [ "$window_name" != "$recommended_window" ]; then
+            echo "⚠️  プロジェクト混信の可能性" >&2
             echo "   現在プロジェクト: $project_id" >&2
-            echo "   指定ウィンドウ: $window_name → $recommended_window (強制変更)" >&2
-            echo "   理由: プロジェクト間混信を根本的に防止" >&2
-            
-            # 強制的に推奨ウィンドウに変更
-            window_name="$recommended_window"
-            
-            # 修正ログを記録
-            mkdir -p logs
-            echo "[$(date '+%Y-%m-%d %H:%M:%S')] AUTO_CORRECTION: Project $project_id redirected to $recommended_window" >> logs/auto_correction.log
+            echo "   指定ウィンドウ: $window_name" >&2
+            echo "   推奨ウィンドウ: $recommended_window" >&2
+            echo "   ヒント: 正しいウィンドウを明示的に指定してください" >&2
         fi
     fi
     
