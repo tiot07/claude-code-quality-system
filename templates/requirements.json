@@ -1,0 +1,858 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quality Assurance System Requirements Template",
+  "description": "プロジェクト要件の構造化テンプレート",
+  "type": "object",
+  "properties": {
+    "project_info": {
+      "type": "object",
+      "description": "プロジェクト基本情報",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "description": "プロジェクト識別子",
+          "pattern": "^qas_[0-9]{8}_[0-9]{6}$",
+          "example": "qas_20240101_120000"
+        },
+        "title": {
+          "type": "string",
+          "description": "プロジェクト名",
+          "minLength": 1,
+          "maxLength": 100,
+          "example": "ECサイト商品検索機能"
+        },
+        "description": {
+          "type": "string", 
+          "description": "プロジェクト概要",
+          "minLength": 10,
+          "maxLength": 500,
+          "example": "ユーザーが商品を高速で検索できる機能を実装する"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"],
+          "description": "プロジェクト優先度",
+          "default": "medium"
+        },
+        "estimated_duration_hours": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 200,
+          "description": "見積もり工数（時間）",
+          "example": 24
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time",
+          "description": "納期",
+          "example": "2024-01-15T18:00:00Z"
+        },
+        "stakeholders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "ステークホルダー",
+          "example": ["プロダクトマネージャー", "フロントエンドチーム", "バックエンドチーム"]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "要件作成日時"
+        },
+        "updated_at": {
+          "type": "string", 
+          "format": "date-time",
+          "description": "要件更新日時"
+        }
+      },
+      "required": ["project_id", "title", "description", "priority", "deadline", "created_at"]
+    },
+    "functional_requirements": {
+      "type": "object",
+      "description": "機能要件",
+      "properties": {
+        "core_features": {
+          "type": "array",
+          "description": "コア機能",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^F[0-9]{3}$",
+                "description": "機能ID",
+                "example": "F001"
+              },
+              "name": {
+                "type": "string",
+                "description": "機能名",
+                "example": "商品検索"
+              },
+              "description": {
+                "type": "string",
+                "description": "機能詳細",
+                "example": "キーワードで商品を検索し、結果を一覧表示する"
+              },
+              "priority": {
+                "type": "string",
+                "enum": ["must", "should", "could", "wont"],
+                "description": "MoSCoW優先度",
+                "default": "must"
+              },
+              "user_story": {
+                "type": "string",
+                "description": "ユーザーストーリー",
+                "example": "ユーザーとして、商品名でキーワード検索して、関連商品を素早く見つけたい"
+              },
+              "acceptance_criteria": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "受け入れ条件",
+                "example": [
+                  "検索結果は1秒以内に表示される",
+                  "部分一致検索に対応している",
+                  "検索結果は関連度順にソートされる"
+                ]
+              },
+              "testable": {
+                "type": "boolean",
+                "description": "テスト可能か",
+                "default": true
+              },
+              "dependencies": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "依存関係",
+                "example": ["F002", "F003"]
+              }
+            },
+            "required": ["id", "name", "description", "priority", "user_story", "acceptance_criteria"]
+          }
+        },
+        "user_interface": {
+          "type": "object",
+          "description": "ユーザーインターフェース要件",
+          "properties": {
+            "design_system": {
+              "type": "string",
+              "description": "使用するデザインシステム",
+              "example": "Material-UI"
+            },
+            "responsive": {
+              "type": "boolean",
+              "description": "レスポンシブ対応",
+              "default": true
+            },
+            "accessibility": {
+              "type": "string",
+              "description": "アクセシビリティ基準",
+              "enum": ["WCAG 2.0 A", "WCAG 2.0 AA", "WCAG 2.1 AA", "WCAG 2.1 AAA"],
+              "default": "WCAG 2.1 AA"
+            },
+            "browser_support": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "対応ブラウザ",
+              "example": ["Chrome 90+", "Firefox 88+", "Safari 14+", "Edge 90+"]
+            },
+            "mobile_support": {
+              "type": "boolean",
+              "description": "モバイル対応",
+              "default": true
+            }
+          }
+        },
+        "api_requirements": {
+          "type": "object",
+          "description": "API要件",
+          "properties": {
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+                    "description": "HTTPメソッド"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "エンドポイントパス",
+                    "example": "/api/v1/search"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "API概要"
+                  },
+                  "request_schema": {
+                    "type": "object",
+                    "description": "リクエストスキーマ"
+                  },
+                  "response_schema": {
+                    "type": "object", 
+                    "description": "レスポンススキーマ"
+                  },
+                  "error_codes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "description": "エラーコード"
+                  }
+                },
+                "required": ["method", "path", "description"]
+              }
+            }
+          }
+        }
+      },
+      "required": ["core_features"]
+    },
+    "quality_requirements": {
+      "type": "object",
+      "description": "品質要件",
+      "properties": {
+        "performance": {
+          "type": "object",
+          "description": "パフォーマンス要件",
+          "properties": {
+            "response_time": {
+              "type": "object",
+              "properties": {
+                "target_ms": {
+                  "type": "number",
+                  "minimum": 50,
+                  "maximum": 10000,
+                  "description": "目標応答時間（ミリ秒）",
+                  "default": 1000
+                },
+                "maximum_ms": {
+                  "type": "number",
+                  "minimum": 100,
+                  "maximum": 30000,
+                  "description": "最大許容応答時間（ミリ秒）",
+                  "default": 3000
+                }
+              },
+              "required": ["target_ms", "maximum_ms"]
+            },
+            "throughput": {
+              "type": "object",
+              "properties": {
+                "requests_per_second": {
+                  "type": "number",
+                  "minimum": 1,
+                  "description": "秒間リクエスト数",
+                  "default": 100
+                },
+                "concurrent_users": {
+                  "type": "number",
+                  "minimum": 1,
+                  "description": "同時ユーザー数",
+                  "default": 100
+                }
+              },
+              "required": ["requests_per_second", "concurrent_users"]
+            },
+            "resource_usage": {
+              "type": "object",
+              "properties": {
+                "max_memory_mb": {
+                  "type": "number",
+                  "minimum": 64,
+                  "maximum": 8192,
+                  "description": "最大メモリ使用量（MB）",
+                  "default": 512
+                },
+                "max_cpu_percent": {
+                  "type": "number",
+                  "minimum": 10,
+                  "maximum": 100,
+                  "description": "最大CPU使用率（%）",
+                  "default": 80
+                }
+              },
+              "required": ["max_memory_mb", "max_cpu_percent"]
+            }
+          },
+          "required": ["response_time", "throughput", "resource_usage"]
+        },
+        "reliability": {
+          "type": "object",
+          "description": "信頼性要件",
+          "properties": {
+            "availability_percent": {
+              "type": "number",
+              "minimum": 90,
+              "maximum": 100,
+              "description": "可用性（%）",
+              "default": 99.9
+            },
+            "error_rate_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "エラー率（%）",
+              "default": 0.1
+            },
+            "recovery_time_seconds": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 3600,
+              "description": "復旧時間（秒）",
+              "default": 60
+            }
+          },
+          "required": ["availability_percent", "error_rate_percent"]
+        },
+        "security": {
+          "type": "object",
+          "description": "セキュリティ要件",
+          "properties": {
+            "authentication": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["JWT", "OAuth2", "Session", "API_Key", "None"],
+                  "description": "認証方式",
+                  "default": "JWT"
+                },
+                "multi_factor": {
+                  "type": "boolean",
+                  "description": "多要素認証",
+                  "default": false
+                },
+                "session_timeout_minutes": {
+                  "type": "number",
+                  "minimum": 5,
+                  "maximum": 1440,
+                  "description": "セッションタイムアウト（分）",
+                  "default": 60
+                }
+              },
+              "required": ["method"]
+            },
+            "authorization": {
+              "type": "object",
+              "properties": {
+                "rbac": {
+                  "type": "boolean",
+                  "description": "ロールベースアクセス制御",
+                  "default": true
+                },
+                "roles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "定義するロール",
+                  "example": ["admin", "user", "guest"]
+                }
+              }
+            },
+            "data_protection": {
+              "type": "object",
+              "properties": {
+                "encryption_at_rest": {
+                  "type": "boolean",
+                  "description": "保存時暗号化",
+                  "default": true
+                },
+                "encryption_in_transit": {
+                  "type": "boolean",
+                  "description": "転送時暗号化",
+                  "default": true
+                },
+                "pii_handling": {
+                  "type": "boolean",
+                  "description": "個人情報の適切な取り扱い",
+                  "default": true
+                }
+              },
+              "required": ["encryption_at_rest", "encryption_in_transit"]
+            },
+            "vulnerability_scan": {
+              "type": "boolean",
+              "description": "脆弱性スキャン要求",
+              "default": true
+            }
+          },
+          "required": ["authentication", "data_protection"]
+        },
+        "usability": {
+          "type": "object",
+          "description": "ユーザビリティ要件",
+          "properties": {
+            "user_experience": {
+              "type": "object",
+              "properties": {
+                "intuitive_design": {
+                  "type": "boolean",
+                  "description": "直感的なデザイン",
+                  "default": true
+                },
+                "consistent_ui": {
+                  "type": "boolean",
+                  "description": "一貫したUI",
+                  "default": true
+                },
+                "error_handling": {
+                  "type": "boolean",
+                  "description": "適切なエラーハンドリング",
+                  "default": true
+                }
+              }
+            },
+            "learning_curve": {
+              "type": "string",
+              "enum": ["minimal", "low", "medium", "high"],
+              "description": "学習コスト",
+              "default": "low"
+            },
+            "task_completion_time": {
+              "type": "object",
+              "properties": {
+                "target_seconds": {
+                  "type": "number",
+                  "minimum": 1,
+                  "description": "目標タスク完了時間（秒）"
+                },
+                "task_description": {
+                  "type": "string",
+                  "description": "タスク内容"
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["performance", "reliability", "security", "usability"]
+    },
+    "technical_requirements": {
+      "type": "object",
+      "description": "技術要件",
+      "properties": {
+        "technology_stack": {
+          "type": "object",
+          "description": "技術スタック",
+          "properties": {
+            "frontend": {
+              "type": "object",
+              "properties": {
+                "framework": {
+                  "type": "string",
+                  "enum": ["React", "Vue.js", "Angular", "Svelte", "Next.js", "Nuxt.js", "Vanilla"],
+                  "description": "フロントエンドフレームワーク"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": ["TypeScript", "JavaScript"],
+                  "description": "プログラミング言語",
+                  "default": "TypeScript"
+                },
+                "styling": {
+                  "type": "string",
+                  "enum": ["CSS", "SCSS", "Styled-Components", "Emotion", "Tailwind CSS"],
+                  "description": "スタイリング手法"
+                },
+                "bundler": {
+                  "type": "string",
+                  "enum": ["Webpack", "Vite", "Rollup", "Parcel"],
+                  "description": "バンドラー"
+                }
+              },
+              "required": ["framework", "language"]
+            },
+            "backend": {
+              "type": "object",
+              "properties": {
+                "framework": {
+                  "type": "string",
+                  "enum": ["Express.js", "Fastify", "Koa.js", "NestJS", "Django", "Flask", "Spring Boot", "ASP.NET Core"],
+                  "description": "バックエンドフレームワーク"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": ["TypeScript", "JavaScript", "Python", "Java", "C#", "Go", "Rust"],
+                  "description": "プログラミング言語"
+                },
+                "runtime": {
+                  "type": "string",
+                  "enum": ["Node.js", "Python", "JVM", ".NET", "Go", "Rust"],
+                  "description": "実行環境"
+                }
+              },
+              "required": ["framework", "language", "runtime"]
+            },
+            "database": {
+              "type": "object",
+              "properties": {
+                "primary": {
+                  "type": "string",
+                  "enum": ["PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "DynamoDB"],
+                  "description": "メインデータベース"
+                },
+                "cache": {
+                  "type": "string",
+                  "enum": ["Redis", "Memcached", "In-Memory", "None"],
+                  "description": "キャッシュ",
+                  "default": "Redis"
+                },
+                "search": {
+                  "type": "string",
+                  "enum": ["Elasticsearch", "Solr", "Algolia", "None"],
+                  "description": "検索エンジン"
+                }
+              },
+              "required": ["primary"]
+            }
+          },
+          "required": ["frontend", "backend", "database"]
+        },
+        "architecture": {
+          "type": "object",
+          "description": "アーキテクチャ",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "enum": ["MVC", "MVP", "MVVM", "Clean Architecture", "Hexagonal", "Microservices", "Monolith"],
+              "description": "アーキテクチャパターン",
+              "default": "Clean Architecture"
+            },
+            "deployment": {
+              "type": "string",
+              "enum": ["Docker", "Kubernetes", "Serverless", "Traditional", "Container"],
+              "description": "デプロイメント方式",
+              "default": "Docker"
+            },
+            "api_design": {
+              "type": "string",
+              "enum": ["REST", "GraphQL", "gRPC", "WebSocket"],
+              "description": "API設計",
+              "default": "REST"
+            }
+          },
+          "required": ["pattern", "deployment", "api_design"]
+        },
+        "development_practices": {
+          "type": "object",
+          "description": "開発プラクティス",
+          "properties": {
+            "version_control": {
+              "type": "string",
+              "enum": ["Git", "SVN", "Mercurial"],
+              "description": "バージョン管理",
+              "default": "Git"
+            },
+            "code_review": {
+              "type": "boolean",
+              "description": "コードレビュー必須",
+              "default": true
+            },
+            "testing_strategy": {
+              "type": "object",
+              "properties": {
+                "unit_tests": {
+                  "type": "boolean",
+                  "description": "単体テスト",
+                  "default": true
+                },
+                "integration_tests": {
+                  "type": "boolean",
+                  "description": "統合テスト",
+                  "default": true
+                },
+                "e2e_tests": {
+                  "type": "boolean",
+                  "description": "E2Eテスト",
+                  "default": false
+                },
+                "coverage_minimum": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "最小カバレッジ（%）",
+                  "default": 80
+                }
+              },
+              "required": ["unit_tests", "coverage_minimum"]
+            },
+            "ci_cd": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "CI/CD有効",
+                  "default": true
+                },
+                "platform": {
+                  "type": "string",
+                  "enum": ["GitHub Actions", "GitLab CI", "Jenkins", "CircleCI", "Travis CI"],
+                  "description": "CI/CDプラットフォーム"
+                },
+                "automated_testing": {
+                  "type": "boolean",
+                  "description": "自動テスト実行",
+                  "default": true
+                },
+                "automated_deployment": {
+                  "type": "boolean",
+                  "description": "自動デプロイ",
+                  "default": false
+                }
+              },
+              "required": ["enabled"]
+            }
+          },
+          "required": ["version_control", "testing_strategy", "ci_cd"]
+        }
+      },
+      "required": ["technology_stack", "architecture", "development_practices"]
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "description": "受け入れ基準",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^AC[0-9]{3}$",
+            "description": "受け入れ基準ID",
+            "example": "AC001"
+          },
+          "description": {
+            "type": "string",
+            "description": "受け入れ基準詳細",
+            "example": "全機能が要件通りに動作する"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["functional", "performance", "security", "usability", "technical"],
+            "description": "基準タイプ"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"],
+            "description": "重要度",
+            "default": "high"
+          },
+          "measurable": {
+            "type": "boolean",
+            "description": "測定可能か",
+            "default": true
+          },
+          "test_method": {
+            "type": "string",
+            "description": "テスト方法",
+            "example": "自動テスト実行"
+          },
+          "pass_condition": {
+            "type": "string",
+            "description": "合格条件",
+            "example": "全テストケースがPASS"
+          }
+        },
+        "required": ["id", "description", "type", "priority", "test_method", "pass_condition"]
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "制約条件",
+      "properties": {
+        "budget": {
+          "type": "object",
+          "properties": {
+            "max_cost": {
+              "type": "number",
+              "minimum": 0,
+              "description": "最大コスト"
+            },
+            "currency": {
+              "type": "string",
+              "enum": ["USD", "JPY", "EUR"],
+              "description": "通貨",
+              "default": "JPY"
+            }
+          }
+        },
+        "timeline": {
+          "type": "object",
+          "properties": {
+            "phases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "フェーズ名"
+                  },
+                  "deadline": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "フェーズ期限"
+                  },
+                  "deliverables": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "成果物"
+                  }
+                },
+                "required": ["name", "deadline", "deliverables"]
+              }
+            }
+          }
+        },
+        "compliance": {
+          "type": "object",
+          "properties": {
+            "regulations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "準拠法規",
+              "example": ["GDPR", "個人情報保護法", "PCI DSS"]
+            },
+            "standards": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "準拠標準",
+              "example": ["ISO 27001", "SOC 2", "WCAG 2.1"]
+            }
+          }
+        },
+        "technical_limitations": {
+          "type": "object",
+          "properties": {
+            "legacy_system_integration": {
+              "type": "boolean",
+              "description": "レガシーシステム連携",
+              "default": false
+            },
+            "supported_platforms": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "対応プラットフォーム"
+            },
+            "third_party_dependencies": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "サードパーティ依存関係"
+            }
+          }
+        }
+      }
+    },
+    "success_metrics": {
+      "type": "object",
+      "description": "成功指標",
+      "properties": {
+        "business_metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "指標名"
+              },
+              "target_value": {
+                "type": "number",
+                "description": "目標値"
+              },
+              "unit": {
+                "type": "string",
+                "description": "単位"
+              },
+              "measurement_method": {
+                "type": "string",
+                "description": "測定方法"
+              }
+            },
+            "required": ["name", "target_value", "unit", "measurement_method"]
+          }
+        },
+        "technical_metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "技術指標名"
+              },
+              "target_value": {
+                "type": "number",
+                "description": "目標値"
+              },
+              "unit": {
+                "type": "string",
+                "description": "単位"
+              },
+              "measurement_tool": {
+                "type": "string",
+                "description": "測定ツール"
+              }
+            },
+            "required": ["name", "target_value", "unit", "measurement_tool"]
+          }
+        },
+        "user_satisfaction": {
+          "type": "object",
+          "properties": {
+            "target_score": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "目標満足度スコア",
+              "default": 8
+            },
+            "measurement_method": {
+              "type": "string",
+              "enum": ["Survey", "Interview", "Analytics", "A/B Testing"],
+              "description": "測定方法",
+              "default": "Survey"
+            }
+          },
+          "required": ["target_score", "measurement_method"]
+        }
+      },
+      "required": ["technical_metrics", "user_satisfaction"]
+    }
+  },
+  "required": [
+    "project_info",
+    "functional_requirements", 
+    "quality_requirements",
+    "technical_requirements",
+    "acceptance_criteria",
+    "success_metrics"
+  ]
+}

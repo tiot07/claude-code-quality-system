@@ -1,0 +1,1116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quality Assurance System Quality Criteria Template",
+  "description": "品質チェック基準設定テンプレート",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "メタデータ",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "基準バージョン",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "example": "1.0.0"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "作成日時"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "更新日時"
+        },
+        "description": {
+          "type": "string",
+          "description": "基準説明",
+          "example": "標準的なWebアプリケーション品質基準"
+        },
+        "applicable_projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "適用プロジェクト類型",
+          "example": ["web-application", "mobile-app", "api-service"]
+        }
+      },
+      "required": ["version", "created_at", "description"]
+    },
+    "overall_requirements": {
+      "type": "object",
+      "description": "全体要件",
+      "properties": {
+        "passing_score": {
+          "type": "object",
+          "description": "合格基準",
+          "properties": {
+            "functional_requirements": {
+              "type": "number",
+              "minimum": 90,
+              "maximum": 100,
+              "description": "機能要件最低スコア",
+              "default": 100
+            },
+            "quality_requirements": {
+              "type": "number",
+              "minimum": 70,
+              "maximum": 100,
+              "description": "品質要件最低スコア",
+              "default": 80
+            },
+            "technical_requirements": {
+              "type": "number",
+              "minimum": 80,
+              "maximum": 100,
+              "description": "技術要件最低スコア",
+              "default": 90
+            },
+            "test_requirements": {
+              "type": "number",
+              "minimum": 75,
+              "maximum": 100,
+              "description": "テスト要件最低スコア",
+              "default": 85
+            },
+            "documentation_requirements": {
+              "type": "number",
+              "minimum": 60,
+              "maximum": 100,
+              "description": "ドキュメント要件最低スコア",
+              "default": 70
+            }
+          },
+          "required": [
+            "functional_requirements",
+            "quality_requirements", 
+            "technical_requirements",
+            "test_requirements",
+            "documentation_requirements"
+          ]
+        },
+        "critical_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "functional_requirements",
+              "security",
+              "performance",
+              "data_integrity",
+              "accessibility"
+            ]
+          },
+          "description": "必須達成要件（これらは100%達成必須）",
+          "default": ["functional_requirements", "security"]
+        }
+      },
+      "required": ["passing_score", "critical_requirements"]
+    },
+    "functional_requirements": {
+      "type": "object",
+      "description": "機能要件基準",
+      "properties": {
+        "core_functionality": {
+          "type": "object",
+          "properties": {
+            "completion_rate": {
+              "type": "number",
+              "minimum": 95,
+              "maximum": 100,
+              "description": "コア機能完成率（%）",
+              "default": 100
+            },
+            "error_handling": {
+              "type": "object",
+              "properties": {
+                "coverage_rate": {
+                  "type": "number",
+                  "minimum": 90,
+                  "maximum": 100,
+                  "description": "エラーハンドリングカバー率（%）",
+                  "default": 95
+                },
+                "user_friendly_messages": {
+                  "type": "boolean",
+                  "description": "ユーザーフレンドリーエラーメッセージ",
+                  "default": true
+                }
+              },
+              "required": ["coverage_rate", "user_friendly_messages"]
+            },
+            "edge_cases": {
+              "type": "object",
+              "properties": {
+                "handling_rate": {
+                  "type": "number",
+                  "minimum": 80,
+                  "maximum": 100,
+                  "description": "エッジケース対応率（%）",
+                  "default": 90
+                }
+              },
+              "required": ["handling_rate"]
+            }
+          },
+          "required": ["completion_rate", "error_handling", "edge_cases"]
+        },
+        "user_interface": {
+          "type": "object",
+          "properties": {
+            "responsiveness": {
+              "type": "object",
+              "properties": {
+                "mobile_compatibility": {
+                  "type": "boolean",
+                  "description": "モバイル対応",
+                  "default": true
+                },
+                "tablet_compatibility": {
+                  "type": "boolean",
+                  "description": "タブレット対応",
+                  "default": true
+                },
+                "desktop_compatibility": {
+                  "type": "boolean",
+                  "description": "デスクトップ対応",
+                  "default": true
+                }
+              },
+              "required": ["mobile_compatibility", "desktop_compatibility"]
+            },
+            "accessibility": {
+              "type": "object",
+              "properties": {
+                "wcag_compliance": {
+                  "type": "string",
+                  "enum": ["A", "AA", "AAA"],
+                  "description": "WCAG準拠レベル",
+                  "default": "AA"
+                },
+                "keyboard_navigation": {
+                  "type": "boolean",
+                  "description": "キーボードナビゲーション対応",
+                  "default": true
+                },
+                "screen_reader_support": {
+                  "type": "boolean",
+                  "description": "スクリーンリーダー対応",
+                  "default": true
+                }
+              },
+              "required": ["wcag_compliance", "keyboard_navigation"]
+            }
+          },
+          "required": ["responsiveness", "accessibility"]
+        },
+        "api_functionality": {
+          "type": "object",
+          "properties": {
+            "endpoint_coverage": {
+              "type": "number",
+              "minimum": 95,
+              "maximum": 100,
+              "description": "エンドポイント実装率（%）",
+              "default": 100
+            },
+            "http_status_codes": {
+              "type": "object",
+              "properties": {
+                "correct_usage": {
+                  "type": "boolean",
+                  "description": "適切なHTTPステータスコード使用",
+                  "default": true
+                }
+              },
+              "required": ["correct_usage"]
+            },
+            "data_validation": {
+              "type": "object",
+              "properties": {
+                "input_validation": {
+                  "type": "boolean",
+                  "description": "入力値検証",
+                  "default": true
+                },
+                "output_sanitization": {
+                  "type": "boolean",
+                  "description": "出力値サニタイゼーション",
+                  "default": true
+                }
+              },
+              "required": ["input_validation", "output_sanitization"]
+            }
+          },
+          "required": ["endpoint_coverage", "http_status_codes", "data_validation"]
+        }
+      },
+      "required": ["core_functionality", "user_interface", "api_functionality"]
+    },
+    "performance_requirements": {
+      "type": "object",
+      "description": "パフォーマンス要件基準",
+      "properties": {
+        "response_time": {
+          "type": "object",
+          "properties": {
+            "api_endpoints": {
+              "type": "object",
+              "properties": {
+                "target_ms": {
+                  "type": "number",
+                  "minimum": 100,
+                  "maximum": 5000,
+                  "description": "API応答時間目標（ミリ秒）",
+                  "default": 1000
+                },
+                "maximum_ms": {
+                  "type": "number",
+                  "minimum": 500,
+                  "maximum": 10000,
+                  "description": "API応答時間上限（ミリ秒）",
+                  "default": 3000
+                }
+              },
+              "required": ["target_ms", "maximum_ms"]
+            },
+            "page_load": {
+              "type": "object",
+              "properties": {
+                "first_contentful_paint_ms": {
+                  "type": "number",
+                  "minimum": 500,
+                  "maximum": 4000,
+                  "description": "First Contentful Paint目標（ミリ秒）",
+                  "default": 2500
+                },
+                "largest_contentful_paint_ms": {
+                  "type": "number",
+                  "minimum": 1000,
+                  "maximum": 6000,
+                  "description": "Largest Contentful Paint目標（ミリ秒）",
+                  "default": 4000
+                },
+                "time_to_interactive_ms": {
+                  "type": "number",
+                  "minimum": 2000,
+                  "maximum": 10000,
+                  "description": "Time to Interactive目標（ミリ秒）",
+                  "default": 5000
+                }
+              },
+              "required": ["first_contentful_paint_ms", "largest_contentful_paint_ms"]
+            }
+          },
+          "required": ["api_endpoints", "page_load"]
+        },
+        "throughput": {
+          "type": "object",
+          "properties": {
+            "requests_per_second": {
+              "type": "number",
+              "minimum": 50,
+              "maximum": 10000,
+              "description": "秒間処理リクエスト数",
+              "default": 100
+            },
+            "concurrent_users": {
+              "type": "number",
+              "minimum": 50,
+              "maximum": 5000,
+              "description": "同時接続ユーザー数",
+              "default": 100
+            },
+            "data_processing": {
+              "type": "object",
+              "properties": {
+                "records_per_second": {
+                  "type": "number",
+                  "minimum": 100,
+                  "description": "秒間データ処理件数"
+                }
+              }
+            }
+          },
+          "required": ["requests_per_second", "concurrent_users"]
+        },
+        "resource_usage": {
+          "type": "object",
+          "properties": {
+            "memory": {
+              "type": "object",
+              "properties": {
+                "maximum_mb": {
+                  "type": "number",
+                  "minimum": 128,
+                  "maximum": 4096,
+                  "description": "最大メモリ使用量（MB）",
+                  "default": 512
+                },
+                "average_mb": {
+                  "type": "number",
+                  "minimum": 64,
+                  "maximum": 2048,
+                  "description": "平均メモリ使用量（MB）",
+                  "default": 256
+                }
+              },
+              "required": ["maximum_mb", "average_mb"]
+            },
+            "cpu": {
+              "type": "object",
+              "properties": {
+                "maximum_percent": {
+                  "type": "number",
+                  "minimum": 50,
+                  "maximum": 100,
+                  "description": "最大CPU使用率（%）",
+                  "default": 80
+                },
+                "average_percent": {
+                  "type": "number",
+                  "minimum": 10,
+                  "maximum": 60,
+                  "description": "平均CPU使用率（%）",
+                  "default": 30
+                }
+              },
+              "required": ["maximum_percent", "average_percent"]
+            },
+            "storage": {
+              "type": "object",
+              "properties": {
+                "database_growth_mb_per_day": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "日次データベース増加量（MB）"
+                },
+                "log_file_size_mb": {
+                  "type": "number",
+                  "minimum": 10,
+                  "maximum": 1000,
+                  "description": "ログファイル最大サイズ（MB）",
+                  "default": 100
+                }
+              }
+            }
+          },
+          "required": ["memory", "cpu"]
+        }
+      },
+      "required": ["response_time", "throughput", "resource_usage"]
+    },
+    "security_requirements": {
+      "type": "object",
+      "description": "セキュリティ要件基準",
+      "properties": {
+        "vulnerability_scan": {
+          "type": "object",
+          "properties": {
+            "critical_vulnerabilities": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0,
+              "description": "許容される重大脆弱性数",
+              "default": 0
+            },
+            "high_vulnerabilities": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "description": "許容される高脆弱性数",
+              "default": 0
+            },
+            "medium_vulnerabilities": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 5,
+              "description": "許容される中脆弱性数",
+              "default": 2
+            },
+            "scan_tools": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["npm-audit", "snyk", "sonarqube", "owasp-zap", "custom"]
+              },
+              "description": "使用スキャンツール",
+              "default": ["npm-audit"]
+            }
+          },
+          "required": ["critical_vulnerabilities", "high_vulnerabilities", "scan_tools"]
+        },
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "implementation_required": {
+              "type": "boolean",
+              "description": "認証実装必須",
+              "default": true
+            },
+            "strong_password_policy": {
+              "type": "boolean",
+              "description": "強力なパスワードポリシー",
+              "default": true
+            },
+            "session_management": {
+              "type": "object",
+              "properties": {
+                "secure_session_handling": {
+                  "type": "boolean",
+                  "description": "安全なセッション管理",
+                  "default": true
+                },
+                "session_timeout_minutes": {
+                  "type": "number",
+                  "minimum": 15,
+                  "maximum": 480,
+                  "description": "セッションタイムアウト（分）",
+                  "default": 60
+                }
+              },
+              "required": ["secure_session_handling", "session_timeout_minutes"]
+            }
+          },
+          "required": ["implementation_required", "session_management"]
+        },
+        "data_protection": {
+          "type": "object",
+          "properties": {
+            "encryption": {
+              "type": "object",
+              "properties": {
+                "data_at_rest": {
+                  "type": "boolean",
+                  "description": "保存データ暗号化",
+                  "default": true
+                },
+                "data_in_transit": {
+                  "type": "boolean",
+                  "description": "転送データ暗号化（HTTPS）",
+                  "default": true
+                },
+                "encryption_algorithm": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["AES-256", "RSA-2048", "RSA-4096", "ChaCha20"]
+                  },
+                  "description": "許可される暗号化アルゴリズム",
+                  "default": ["AES-256"]
+                }
+              },
+              "required": ["data_at_rest", "data_in_transit", "encryption_algorithm"]
+            },
+            "sensitive_data_handling": {
+              "type": "object",
+              "properties": {
+                "pii_protection": {
+                  "type": "boolean",
+                  "description": "個人情報保護",
+                  "default": true
+                },
+                "data_anonymization": {
+                  "type": "boolean",
+                  "description": "データ匿名化対応",
+                  "default": false
+                },
+                "audit_logging": {
+                  "type": "boolean",
+                  "description": "監査ログ記録",
+                  "default": true
+                }
+              },
+              "required": ["pii_protection", "audit_logging"]
+            }
+          },
+          "required": ["encryption", "sensitive_data_handling"]
+        },
+        "input_validation": {
+          "type": "object",
+          "properties": {
+            "sql_injection_prevention": {
+              "type": "boolean",
+              "description": "SQLインジェクション防止",
+              "default": true
+            },
+            "xss_prevention": {
+              "type": "boolean",
+              "description": "XSS攻撃防止",
+              "default": true
+            },
+            "csrf_protection": {
+              "type": "boolean",
+              "description": "CSRF攻撃防止",
+              "default": true
+            },
+            "input_sanitization": {
+              "type": "boolean",
+              "description": "入力値サニタイゼーション",
+              "default": true
+            }
+          },
+          "required": ["sql_injection_prevention", "xss_prevention", "csrf_protection", "input_sanitization"]
+        }
+      },
+      "required": ["vulnerability_scan", "authentication", "data_protection", "input_validation"]
+    },
+    "code_quality_requirements": {
+      "type": "object",
+      "description": "コード品質要件基準",
+      "properties": {
+        "static_analysis": {
+          "type": "object",
+          "properties": {
+            "linting": {
+              "type": "object",
+              "properties": {
+                "error_count": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5,
+                  "description": "許容されるlintエラー数",
+                  "default": 0
+                },
+                "warning_count": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 20,
+                  "description": "許容されるlint警告数",
+                  "default": 5
+                },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["eslint", "tslint", "pylint", "rubocop", "checkstyle"]
+                  },
+                  "description": "使用リンティングツール",
+                  "default": ["eslint"]
+                }
+              },
+              "required": ["error_count", "warning_count", "tools"]
+            },
+            "type_checking": {
+              "type": "object",
+              "properties": {
+                "typescript_errors": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5,
+                  "description": "許容されるTypeScriptエラー数",
+                  "default": 0
+                },
+                "type_coverage_percent": {
+                  "type": "number",
+                  "minimum": 80,
+                  "maximum": 100,
+                  "description": "型カバレッジ（%）",
+                  "default": 90
+                }
+              },
+              "required": ["typescript_errors"]
+            },
+            "complexity_metrics": {
+              "type": "object",
+              "properties": {
+                "cyclomatic_complexity": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 15,
+                  "description": "許容される循環的複雑度",
+                  "default": 10
+                },
+                "cognitive_complexity": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "description": "許容される認知的複雑度",
+                  "default": 15
+                }
+              },
+              "required": ["cyclomatic_complexity"]
+            }
+          },
+          "required": ["linting", "type_checking", "complexity_metrics"]
+        },
+        "code_structure": {
+          "type": "object",
+          "properties": {
+            "file_organization": {
+              "type": "object",
+              "properties": {
+                "consistent_naming": {
+                  "type": "boolean",
+                  "description": "一貫したファイル命名",
+                  "default": true
+                },
+                "logical_grouping": {
+                  "type": "boolean",
+                  "description": "論理的なファイルグループ化",
+                  "default": true
+                }
+              },
+              "required": ["consistent_naming", "logical_grouping"]
+            },
+            "documentation": {
+              "type": "object",
+              "properties": {
+                "inline_comments": {
+                  "type": "boolean",
+                  "description": "適切なインラインコメント",
+                  "default": true
+                },
+                "function_documentation": {
+                  "type": "boolean",
+                  "description": "関数ドキュメント",
+                  "default": true
+                },
+                "api_documentation": {
+                  "type": "boolean",
+                  "description": "API仕様書",
+                  "default": true
+                }
+              },
+              "required": ["inline_comments", "function_documentation"]
+            }
+          },
+          "required": ["file_organization", "documentation"]
+        },
+        "best_practices": {
+          "type": "object",
+          "properties": {
+            "design_patterns": {
+              "type": "boolean",
+              "description": "適切なデザインパターン使用",
+              "default": true
+            },
+            "dry_principle": {
+              "type": "boolean",
+              "description": "DRY原則遵守",
+              "default": true
+            },
+            "solid_principles": {
+              "type": "boolean",
+              "description": "SOLID原則遵守",
+              "default": true
+            },
+            "error_handling": {
+              "type": "boolean",
+              "description": "適切なエラーハンドリング",
+              "default": true
+            }
+          },
+          "required": ["design_patterns", "dry_principle", "error_handling"]
+        }
+      },
+      "required": ["static_analysis", "code_structure", "best_practices"]
+    },
+    "test_requirements": {
+      "type": "object",
+      "description": "テスト要件基準",
+      "properties": {
+        "test_coverage": {
+          "type": "object",
+          "properties": {
+            "overall_coverage_percent": {
+              "type": "number",
+              "minimum": 70,
+              "maximum": 100,
+              "description": "全体テストカバレッジ（%）",
+              "default": 80
+            },
+            "line_coverage_percent": {
+              "type": "number",
+              "minimum": 75,
+              "maximum": 100,
+              "description": "行カバレッジ（%）",
+              "default": 85
+            },
+            "branch_coverage_percent": {
+              "type": "number",
+              "minimum": 70,
+              "maximum": 100,
+              "description": "分岐カバレッジ（%）",
+              "default": 75
+            },
+            "function_coverage_percent": {
+              "type": "number",
+              "minimum": 80,
+              "maximum": 100,
+              "description": "関数カバレッジ（%）",
+              "default": 90
+            }
+          },
+          "required": ["overall_coverage_percent", "line_coverage_percent", "branch_coverage_percent"]
+        },
+        "test_types": {
+          "type": "object",
+          "properties": {
+            "unit_tests": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean",
+                  "description": "単体テスト必須",
+                  "default": true
+                },
+                "minimum_count": {
+                  "type": "number",
+                  "minimum": 1,
+                  "description": "最小テスト数",
+                  "default": 10
+                },
+                "pass_rate_percent": {
+                  "type": "number",
+                  "minimum": 95,
+                  "maximum": 100,
+                  "description": "単体テスト成功率（%）",
+                  "default": 100
+                }
+              },
+              "required": ["required", "pass_rate_percent"]
+            },
+            "integration_tests": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean",
+                  "description": "統合テスト必須",
+                  "default": true
+                },
+                "api_coverage_percent": {
+                  "type": "number",
+                  "minimum": 80,
+                  "maximum": 100,
+                  "description": "API統合テストカバレッジ（%）",
+                  "default": 90
+                },
+                "pass_rate_percent": {
+                  "type": "number",
+                  "minimum": 95,
+                  "maximum": 100,
+                  "description": "統合テスト成功率（%）",
+                  "default": 100
+                }
+              },
+              "required": ["required", "pass_rate_percent"]
+            },
+            "e2e_tests": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean",
+                  "description": "E2Eテスト必須",
+                  "default": false
+                },
+                "critical_path_coverage": {
+                  "type": "boolean",
+                  "description": "クリティカルパスカバレッジ",
+                  "default": true
+                },
+                "pass_rate_percent": {
+                  "type": "number",
+                  "minimum": 90,
+                  "maximum": 100,
+                  "description": "E2Eテスト成功率（%）",
+                  "default": 95
+                }
+              },
+              "required": ["required"]
+            },
+            "performance_tests": {
+              "type": "object",
+              "properties": {
+                "load_testing": {
+                  "type": "boolean",
+                  "description": "負荷テスト実施",
+                  "default": true
+                },
+                "stress_testing": {
+                  "type": "boolean",
+                  "description": "ストレステスト実施",
+                  "default": false
+                }
+              },
+              "required": ["load_testing"]
+            }
+          },
+          "required": ["unit_tests", "integration_tests"]
+        },
+        "test_quality": {
+          "type": "object",
+          "properties": {
+            "test_maintainability": {
+              "type": "boolean",
+              "description": "テストの保守性",
+              "default": true
+            },
+            "test_readability": {
+              "type": "boolean",
+              "description": "テストの可読性",
+              "default": true
+            },
+            "test_isolation": {
+              "type": "boolean",
+              "description": "テストの独立性",
+              "default": true
+            },
+            "test_determinism": {
+              "type": "boolean",
+              "description": "テストの決定性",
+              "default": true
+            }
+          },
+          "required": ["test_maintainability", "test_isolation", "test_determinism"]
+        }
+      },
+      "required": ["test_coverage", "test_types", "test_quality"]
+    },
+    "documentation_requirements": {
+      "type": "object",
+      "description": "ドキュメント要件基準",
+      "properties": {
+        "required_documents": {
+          "type": "object",
+          "properties": {
+            "readme": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean",
+                  "description": "README.md必須",
+                  "default": true
+                },
+                "minimum_sections": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "installation",
+                      "usage",
+                      "configuration",
+                      "api",
+                      "contributing",
+                      "license",
+                      "changelog"
+                    ]
+                  },
+                  "description": "必須セクション",
+                  "default": ["installation", "usage"]
+                },
+                "minimum_lines": {
+                  "type": "number",
+                  "minimum": 20,
+                  "description": "最小行数",
+                  "default": 50
+                }
+              },
+              "required": ["required", "minimum_sections"]
+            },
+            "api_documentation": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean",
+                  "description": "API仕様書必須",
+                  "default": true
+                },
+                "format": {
+                  "type": "string",
+                  "enum": ["openapi", "swagger", "postman", "markdown"],
+                  "description": "ドキュメント形式",
+                  "default": "openapi"
+                },
+                "endpoint_coverage_percent": {
+                  "type": "number",
+                  "minimum": 90,
+                  "maximum": 100,
+                  "description": "エンドポイント文書化率（%）",
+                  "default": 100
+                }
+              },
+              "required": ["required", "endpoint_coverage_percent"]
+            },
+            "deployment_guide": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "boolean",
+                  "description": "デプロイメントガイド必須",
+                  "default": true
+                },
+                "includes_environment_setup": {
+                  "type": "boolean",
+                  "description": "環境設定手順含む",
+                  "default": true
+                },
+                "includes_troubleshooting": {
+                  "type": "boolean",
+                  "description": "トラブルシューティング含む",
+                  "default": true
+                }
+              },
+              "required": ["required"]
+            }
+          },
+          "required": ["readme", "api_documentation"]
+        },
+        "code_documentation": {
+          "type": "object",
+          "properties": {
+            "inline_comments": {
+              "type": "object",
+              "properties": {
+                "complex_logic_documented": {
+                  "type": "boolean",
+                  "description": "複雑なロジックにコメント",
+                  "default": true
+                },
+                "public_api_documented": {
+                  "type": "boolean",
+                  "description": "パブリックAPI文書化",
+                  "default": true
+                }
+              },
+              "required": ["complex_logic_documented", "public_api_documented"]
+            },
+            "function_documentation": {
+              "type": "object",
+              "properties": {
+                "coverage_percent": {
+                  "type": "number",
+                  "minimum": 80,
+                  "maximum": 100,
+                  "description": "関数文書化率（%）",
+                  "default": 90
+                },
+                "includes_parameters": {
+                  "type": "boolean",
+                  "description": "パラメータ説明含む",
+                  "default": true
+                },
+                "includes_return_values": {
+                  "type": "boolean",
+                  "description": "戻り値説明含む",
+                  "default": true
+                },
+                "includes_examples": {
+                  "type": "boolean",
+                  "description": "使用例含む",
+                  "default": false
+                }
+              },
+              "required": ["coverage_percent", "includes_parameters", "includes_return_values"]
+            }
+          },
+          "required": ["inline_comments", "function_documentation"]
+        },
+        "documentation_quality": {
+          "type": "object",
+          "properties": {
+            "accuracy": {
+              "type": "boolean",
+              "description": "文書の正確性",
+              "default": true
+            },
+            "completeness": {
+              "type": "boolean",
+              "description": "文書の完全性",
+              "default": true
+            },
+            "clarity": {
+              "type": "boolean",
+              "description": "文書の明確性",
+              "default": true
+            },
+            "up_to_date": {
+              "type": "boolean",
+              "description": "文書の最新性",
+              "default": true
+            }
+          },
+          "required": ["accuracy", "completeness", "clarity", "up_to_date"]
+        }
+      },
+      "required": ["required_documents", "code_documentation", "documentation_quality"]
+    },
+    "project_type_variations": {
+      "type": "object",
+      "description": "プロジェクト種別による基準調整",
+      "properties": {
+        "web_application": {
+          "type": "object",
+          "description": "Webアプリケーション向け調整",
+          "properties": {
+            "performance_weight": {
+              "type": "number",
+              "minimum": 1.0,
+              "maximum": 2.0,
+              "description": "パフォーマンス重要度",
+              "default": 1.5
+            },
+            "security_weight": {
+              "type": "number",
+              "minimum": 1.0,
+              "maximum": 2.0,
+              "description": "セキュリティ重要度",
+              "default": 1.8
+            }
+          }
+        },
+        "mobile_application": {
+          "type": "object",
+          "description": "モバイルアプリケーション向け調整",
+          "properties": {
+            "performance_weight": {
+              "type": "number",
+              "minimum": 1.0,
+              "maximum": 2.0,
+              "description": "パフォーマンス重要度",
+              "default": 2.0
+            },
+            "battery_efficiency_required": {
+              "type": "boolean",
+              "description": "バッテリー効率要求",
+              "default": true
+            }
+          }
+        },
+        "api_service": {
+          "type": "object",
+          "description": "APIサービス向け調整",
+          "properties": {
+            "documentation_weight": {
+              "type": "number",
+              "minimum": 1.0,
+              "maximum": 2.0,
+              "description": "ドキュメント重要度",
+              "default": 1.8
+            },
+            "test_coverage_minimum": {
+              "type": "number",
+              "minimum": 85,
+              "maximum": 100,
+              "description": "最小テストカバレッジ（%）",
+              "default": 90
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "metadata",
+    "overall_requirements",
+    "functional_requirements",
+    "performance_requirements",
+    "security_requirements",
+    "code_quality_requirements",
+    "test_requirements",
+    "documentation_requirements"
+  ]
+}
