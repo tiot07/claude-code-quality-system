@@ -275,6 +275,19 @@ if [ -f package.json ] && grep -q '"test"' package.json; then
     run_test "ユニットテスト実行" "timeout 60s npm test -- --watchAll=false"
 fi
 
+# Playwright E2Eテスト確認
+if [ -f package.json ] && grep -q "@playwright/test" package.json; then
+    log_info "🎭 Playwright E2Eテスト確認"
+    echo "## Playwright E2Eテスト" >> "$TEST_REPORT"
+    
+    # 開発サーバーが起動していることを確認
+    if [ "$SERVER_STARTED" = true ]; then
+        run_test "Playwright E2Eテスト実行" "npx playwright test --reporter=list"
+    else
+        echo "- ⚠️ E2Eテストスキップ（サーバー未起動）" >> "$TEST_REPORT"
+    fi
+fi
+
 # 9. Lint/型チェック
 log_info "🔍 Lint/型チェック"
 echo "## Lint/型チェック" >> "$TEST_REPORT"

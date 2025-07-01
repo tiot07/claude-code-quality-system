@@ -438,7 +438,88 @@ cat > workspace/$(./scripts/get-project-id.sh)/test_plan.md << 'EOF'
 EOF
 ```
 
-### 2. 自動化されたテスト実行
+### 2. Playwright E2Eテストの実装（推奨）
+```bash
+# Playwright E2Eテストセットアップ
+cat > workspace/$(./scripts/get-project-id.sh)/setup_playwright.sh << 'EOF'
+#!/bin/bash
+
+echo "🎭 Playwright E2Eテスト環境構築"
+
+# Playwrightインストール
+npm install -D @playwright/test
+npx playwright install
+
+# E2Eテストディレクトリ作成
+mkdir -p tests/e2e
+
+# 基本的なE2Eテスト作成
+cat > tests/e2e/app.spec.ts << 'EOFTEST'
+import { test, expect } from '@playwright/test';
+
+test.describe('アプリケーション基本動作', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('http://localhost:3000');
+  });
+
+  test('ページが正常に表示される', async ({ page }) => {
+    await expect(page).toHaveTitle(/.*/);
+    await expect(page.locator('body')).toBeVisible();
+  });
+
+  test('インタラクティブ要素が動作する', async ({ page }) => {
+    // ボタンクリックテスト
+    const buttons = page.locator('button');
+    const count = await buttons.count();
+    
+    for (let i = 0; i < count; i++) {
+      const button = buttons.nth(i);
+      if (await button.isVisible()) {
+        await button.click();
+        // エラーが発生していないことを確認
+        await page.waitForTimeout(100);
+      }
+    }
+  });
+
+  test('フォーム入力が正常に動作する', async ({ page }) => {
+    const inputs = page.locator('input[type="text"], input[type="email"], textarea');
+    const count = await inputs.count();
+    
+    for (let i = 0; i < count; i++) {
+      const input = inputs.nth(i);
+      if (await input.isVisible()) {
+        await input.fill('テストデータ');
+        await expect(input).toHaveValue('テストデータ');
+      }
+    }
+  });
+});
+
+test.describe('レスポンシブデザイン', () => {
+  const viewports = [
+    { name: 'Mobile', width: 375, height: 667 },
+    { name: 'Tablet', width: 768, height: 1024 },
+    { name: 'Desktop', width: 1920, height: 1080 }
+  ];
+
+  viewports.forEach(({ name, width, height }) => {
+    test(`${name}表示確認`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('http://localhost:3000');
+      await expect(page).toHaveScreenshot(`${name.toLowerCase()}.png`);
+    });
+  });
+});
+EOFTEST
+
+echo "✅ Playwright E2Eテスト環境構築完了"
+EOF
+
+chmod +x workspace/$(./scripts/get-project-id.sh)/setup_playwright.sh
+```
+
+### 3. 自動化されたテスト実行
 ```bash
 # テスト自動実行スクリプト
 cat > workspace/$(./scripts/get-project-id.sh)/run_all_tests.sh << 'EOF'
@@ -457,10 +538,17 @@ echo "2️⃣ 統合テスト実行中..."
 npm run test:integration  
 INTEGRATION_RESULT=$?
 
-# 3. E2Eテスト
+# 3. E2Eテスト（Playwright推奨）
 echo "3️⃣ E2Eテスト実行中..."
-npm run test:e2e
-E2E_RESULT=$?
+if [ -f "playwright.config.ts" ] || [ -f "playwright.config.js" ]; then
+    echo "🎭 Playwright E2Eテスト実行..."
+    npx playwright test
+    E2E_RESULT=$?
+else
+    echo "⚠️ Playwright未設定 - 標準E2Eテスト実行..."
+    npm run test:e2e
+    E2E_RESULT=$?
+fi
 
 # 4. セキュリティテスト
 echo "4️⃣ セキュリティテスト実行中..."

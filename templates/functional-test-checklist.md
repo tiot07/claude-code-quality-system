@@ -32,7 +32,21 @@
 - [ ] **文字化けしていない**
 - [ ] **基本的なページ構造が表示される**
 
-### 🖱️ Priority 3: UI動作確認
+### 🎭 Priority 3: Playwright E2E自動テスト（推奨）
+
+#### Playwright E2Eテスト実行
+- [ ] **Playwrightがインストールされている（`npm list @playwright/test`）**
+- [ ] **E2Eテストが実装されている（`tests/e2e/*.spec.ts`）**
+- [ ] **`npx playwright test` が正常に実行される**
+- [ ] **すべてのE2Eテストがパスする**
+
+#### 自動テストカバレッジ
+- [ ] **基本ページアクセステストが含まれている**
+- [ ] **ボタンクリックテストが含まれている**
+- [ ] **フォーム入力テストが含まれている**
+- [ ] **レスポンシブテストが含まれている**
+
+### 🖱️ Priority 4: UI動作確認（Playwright未使用時の手動確認）
 
 #### ページ表示
 - [ ] **ページが正常に読み込まれる**
@@ -59,7 +73,7 @@
   - ページ遷移
   - 戻る/進むボタン
 
-### ⚡ Priority 4: JavaScript動作確認
+### ⚡ Priority 5: JavaScript動作確認
 
 #### コンソールエラー
 - [ ] **ブラウザのConsole（F12）にエラーが出ない**
@@ -73,7 +87,7 @@
 - [ ] **フォーム送信が正常に処理される**
 - [ ] **Ajax/API呼び出しがエラーにならない**
 
-### 📱 Priority 5: レスポンシブ確認
+### 📱 Priority 6: レスポンシブ確認
 
 #### デバイス対応
 - [ ] **デスクトップ（1920x1080）で正常表示**
@@ -87,7 +101,7 @@
 - [ ] **スクロールが正常に動作する**
 - [ ] **要素が画面からはみ出ない**
 
-### 🔍 Priority 6: 機能固有テスト
+### 🔍 Priority 7: 機能固有テスト
 
 #### TODOアプリの場合
 - [ ] **新しいタスクを追加できる**
@@ -109,7 +123,7 @@
 - [ ] **エラーレスポンスが適切**
 - [ ] **認証が必要な場合は正しく動作する**
 
-### 🛡️ Priority 7: エラーハンドリング確認
+### 🛡️ Priority 8: エラーハンドリング確認
 
 #### 不正入力テスト
 - [ ] **空の入力でも適切なエラーメッセージ**
@@ -122,7 +136,7 @@
 - [ ] **タイムアウト時の処理**
 - [ ] **接続エラー時のユーザー通知**
 
-### 📊 Priority 8: パフォーマンス基本確認
+### 📊 Priority 9: パフォーマンス基本確認
 
 #### 応答時間
 - [ ] **ページ読み込みが3秒以内**
@@ -169,13 +183,28 @@
 ./scripts/functional-test.sh
 
 # 結果確認
-cat workspace/$(cat workspace/current_project_id.txt)/functional_test_report.md
+cat workspace/$(./scripts/get-project-id.sh)/functional_test_report.md
 ```
 
-### 2. 手動確認
+### 2. Playwright E2Eテスト実行（推奨）
 ```bash
 # プロジェクトディレクトリに移動
-cd workspace/$(cat workspace/current_project_id.txt)
+cd workspace/$(./scripts/get-project-id.sh)
+
+# Playwrightテスト実行
+if [ -f "playwright.config.ts" ] || [ -f "playwright.config.js" ]; then
+    npx playwright test
+    # レポート確認
+    npx playwright show-report
+else
+    echo "Playwrightが未設定です。手動確認に進んでください。"
+fi
+```
+
+### 3. 手動確認（Playwright未使用時）
+```bash
+# プロジェクトディレクトリに移動
+cd workspace/$(./scripts/get-project-id.sh)
 
 # アプリケーション起動
 npm run dev
@@ -185,7 +214,7 @@ npm run dev
 # 上記チェックリストに従って手動確認
 ```
 
-### 3. エラー発見時の対応
+### 4. エラー発見時の対応
 ```bash
 # 修正指示送信
 ./scripts/agent-send.sh developer "【緊急修正要求】🚨
@@ -210,7 +239,7 @@ npm run dev
 基本的な動作ができるまで修正してください。"
 ```
 
-### 4. 修正完了後の再確認
+### 5. 修正完了後の再確認
 修正報告を受けた後、必ず最初から確認を実行すること。
 
 ## 重要な注意事項
@@ -220,5 +249,6 @@ npm run dev
 3. **基本動作優先**: 高度な機能より、基本的な動作が確実に動くことを重視
 4. **即座の修正指示**: 問題発見時は遠慮なく、具体的な修正指示を送信
 5. **再確認の徹底**: 修正後は必ず最初から確認プロセスを実行
+6. **Playwright E2Eテストの推奨**: 手動確認の前にPlaywright E2Eテストを実行することで、UI動作確認を自動化し、品質を向上させる
 
-このチェックリストに従うことで、「npm run dev でボタンを押したらエラーが出る」といった基本的な問題を確実に検知し、高品質な成果物を保証できます。
+このチェックリストに従うことで、「npm run dev でボタンを押したらエラーが出る」といった基本的な問題を確実に検知し、高品質な成果物を保証できます。Playwright E2Eテストを導入することで、これらの確認を自動化し、より効率的で確実な品質保証が可能になります。

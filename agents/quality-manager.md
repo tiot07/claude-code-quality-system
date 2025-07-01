@@ -162,12 +162,14 @@ EOF
 - パフォーマンス: [応答時間 < Xs]
 - セキュリティ: [セキュリティ要件]
 - テストフレームワーク: [Jest/Pytest等]
+- E2Eテストフレームワーク: Playwright（推奨）
 
 【TDD品質基準】
 - テストカバレッジ: 90%以上必須
 - Lintエラー: 0件必須
 - 型エラー: 0件必須
 - Red-Green-Refactorサイクル: 全機能で実施
+- Playwright E2Eテスト: UI動作の自動検証必須（推奨）
 
 【納期】$(date -d '+2 hours' '+%Y/%m/%d %H:%M')
 
@@ -194,6 +196,7 @@ EOF
 - テストケース数: [X]個
 - テストカバレッジ: [Y]%
 - 全テスト結果: PASS ✅
+- Playwright E2Eテスト: [実施済み/未実施]
 
 ### 🔍 コード品質
 - Lintエラー: [X]件
@@ -331,13 +334,240 @@ chmod +x workspace/$(./scripts/get-project-id.sh)/functional_test.sh
 ./workspace/$(./scripts/get-project-id.sh)/functional_test.sh
 ```
 
-### 3. UI/UX動作確認テスト
+### 3. Playwright E2E自動テスト実行（推奨）
 ```bash
-# UI動作確認（手動確認指示）
-cat > workspace/$(./scripts/get-project-id.sh)/ui_test_checklist.md << 'EOF'
+# Playwright E2Eテストの自動実行
+echo "🎭 Playwright E2Eテスト開始..."
+
+# Playwrightがインストールされているか確認
+if [ -f package.json ] && grep -q "playwright" package.json; then
+    echo "✅ Playwright検出 - E2Eテスト実行中..."
+    
+    # E2Eテストスクリプト作成
+    cat > workspace/$(./scripts/get-project-id.sh)/e2e_test_playwright.sh << 'EOF'
+#!/bin/bash
+
+PROJECT_ID=$(./scripts/get-project-id.sh)
+echo "🎭 Playwright E2Eテスト実行: $PROJECT_ID"
+
+# Playwrightテスト実行
+if [ -f "playwright.config.ts" ] || [ -f "playwright.config.js" ]; then
+    echo "📋 既存のPlaywrightテストを実行..."
+    npx playwright test
+    E2E_RESULT=$?
+else
+    echo "⚠️ Playwright設定ファイルが見つかりません"
+    echo "📝 基本的なE2Eテストを生成中..."
+    
+    # 基本的なPlaywrightテストを生成
+    mkdir -p tests/e2e
+    cat > tests/e2e/basic.spec.ts << 'EOFTEST'
+import { test, expect } from '@playwright/test';
+
+test.describe('基本UI動作確認', () => {
+  test('ホームページが正常に表示される', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    
+    // ページタイトル確認
+    await expect(page).toHaveTitle(/.*/, { timeout: 10000 });
+    
+    // 基本的なコンテンツ確認
+    const body = await page.textContent('body');
+    expect(body).not.toBe('');
+    
+    // エラーがないことを確認
+    const consoleErrors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+      }
+    });
+    
+    await page.waitForTimeout(2000);
+    expect(consoleErrors).toHaveLength(0);
+  });
+
+  test('ボタンクリックが正常に動作する', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    
+    // すべてのボタンを取得してクリック
+    const buttons = await page.$$('button');
+    for (const button of buttons) {
+      const isVisible = await button.isVisible();
+      if (isVisible) {
+        await button.click();
+        // クリック後のエラーチェック
+        await page.waitForTimeout(500);
+      }
+    }
+  });
+
+  test('フォーム入力が正常に動作する', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    
+    // すべての入力フィールドをテスト
+    const inputs = await page.$$('input[type="text"], input[type="email"], textarea');
+    for (const input of inputs) {
+      const isVisible = await input.isVisible();
+      if (isVisible) {
+        await input.fill('テストデータ');
+        const value = await input.inputValue();
+        expect(value).toBe('テストデータ');
+      }
+    }
+  });
+
+  test('レスポンシブデザインの確認', async ({ page }) => {
+    // モバイルサイズ
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('http://localhost:3000');
+    await expect(page).toHaveScreenshot('mobile.png', { maxDiffPixels: 100 });
+    
+    // タブレットサイズ
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.reload();
+    await expect(page).toHaveScreenshot('tablet.png', { maxDiffPixels: 100 });
+    
+    // デスクトップサイズ
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.reload();
+    await expect(page).toHaveScreenshot('desktop.png', { maxDiffPixels: 100 });
+  });
+});
+EOFTEST
+
+    # Playwright設定ファイル作成
+    cat > playwright.config.ts << 'EOFCONFIG'
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 30 * 1000,
+  expect: {
+    timeout: 5000
+  },
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
+
+  webServer: {
+    command: 'npm run dev',
+    port: 3000,
+    reuseExistingServer: !process.env.CI,
+  },
+});
+EOFCONFIG
+
+    # Playwrightインストール確認
+    if ! command -v playwright &> /dev/null; then
+        echo "📦 Playwrightをインストール中..."
+        npm install -D @playwright/test
+        npx playwright install
+    fi
+    
+    # テスト実行
+    npx playwright test
+    E2E_RESULT=$?
+fi
+
+# 結果レポート
+if [ $E2E_RESULT -eq 0 ]; then
+    echo "✅ Playwright E2Eテスト: 合格"
+    echo "📊 詳細レポート: playwright-report/index.html"
+else
+    echo "❌ Playwright E2Eテスト: 不合格"
+    echo "📊 詳細レポート: playwright-report/index.html"
+    echo "🖼️ スクリーンショット: test-results/"
+fi
+
+exit $E2E_RESULT
+EOF
+
+    chmod +x workspace/$(./scripts/get-project-id.sh)/e2e_test_playwright.sh
+    
+    # E2Eテスト実行
+    if ./workspace/$(./scripts/get-project-id.sh)/e2e_test_playwright.sh; then
+        echo "✅ Playwright E2Eテスト: 合格"
+        PLAYWRIGHT_RESULT="PASS"
+    else
+        echo "❌ Playwright E2Eテスト: 不合格"
+        PLAYWRIGHT_RESULT="FAIL"
+        
+        # E2Eテスト失敗時の詳細分析
+        ./scripts/agent-send.sh developer "【E2Eテスト失敗】🎭
+
+Playwright E2Eテストで問題が検出されました。
+
+## 失敗したテスト
+- UIの基本動作に問題があります
+- 詳細: playwright-report/index.html
+
+## 確認してください
+1. ボタンクリックが正常に動作するか
+2. フォーム入力が正常に動作するか
+3. ページ遷移でエラーが出ないか
+4. レスポンシブデザインが正しく適用されているか
+
+## デバッグ方法
+\`\`\`bash
+# ヘッドレスモードを無効にしてテスト実行
+npx playwright test --headed
+
+# 特定のテストのみ実行
+npx playwright test -g "ボタンクリック"
+
+# トレースビューアーで詳細確認
+npx playwright show-trace test-results/*/trace.zip
+\`\`\`
+
+スクリーンショットとトレースファイルを確認して修正してください。"
+    fi
+else
+    echo "⚠️ Playwrightが未インストール - 手動UI確認に切り替えます"
+    PLAYWRIGHT_RESULT="SKIP"
+fi
+```
+
+### 4. UI/UX動作確認（Playwright未使用時の手動確認）
+```bash
+# Playwrightテストがスキップされた場合のみ手動確認を推奨
+if [ "$PLAYWRIGHT_RESULT" = "SKIP" ]; then
+    echo "📋 Playwrightが利用できないため、手動UI確認を推奨します"
+    
+    # UI動作確認チェックリスト作成
+    cat > workspace/$(./scripts/get-project-id.sh)/ui_test_checklist.md << 'EOF'
 # UI/UX動作確認チェックリスト
 
-## 必須確認項目
+## ⚠️ 推奨事項
+**Playwright E2Eテストの導入を強く推奨します**
+```bash
+npm install -D @playwright/test
+npx playwright install
+```
+
+## 手動確認項目（Playwright未使用時）
 
 ### 基本表示
 - [ ] ページが正常に読み込まれる
@@ -373,14 +603,14 @@ cat > workspace/$(./scripts/get-project-id.sh)/ui_test_checklist.md << 'EOF'
 ❌ 上記で1つでも問題があれば即座に修正指示を出すこと
 EOF
 
-echo "📋 UI/UX動作確認チェックリストを作成しました"
-echo "💻 ブラウザで http://localhost:3000 を開いて手動確認を実施してください"
-echo ""
-echo "⚠️ 重要：実際にブラウザでアプリケーションを操作し、"
-echo "   ボタンクリック・フォーム入力・エラー表示などを確認すること"
+    echo "📋 UI/UX動作確認チェックリストを作成しました"
+    echo "💻 ブラウザで http://localhost:3000 を開いて手動確認を実施してください"
+    echo ""
+    echo "⚠️ 重要：Playwright E2Eテストの導入により、この手動確認を自動化できます"
+fi
 ```
 
-### 4. エラー検知と修正指示
+### 5. エラー検知と修正指示
 ```bash
 # エラー検知時の自動修正指示
 create_error_fix_instruction() {
@@ -454,13 +684,24 @@ $error_details
 }
 ```
 
-### 5. 自動実動作テスト実行
+### 6. 自動実動作テスト実行
 ```bash
 # 🚨 最重要: 自動実動作確認テスト実行
 echo "🚨 実動作確認テスト開始..."
-if ./scripts/functional-test.sh; then
+
+# Playwrightテスト結果を考慮
+if [ "$PLAYWRIGHT_RESULT" = "FAIL" ]; then
+    echo "❌ Playwright E2Eテストが失敗したため、実動作テストは不合格です"
+    FUNCTIONAL_TEST_RESULT="FAIL"
+elif ./scripts/functional-test.sh; then
     echo "✅ 自動実動作テスト: 合格"
     FUNCTIONAL_TEST_RESULT="PASS"
+    
+    # Playwrightテストも成功している場合
+    if [ "$PLAYWRIGHT_RESULT" = "PASS" ]; then
+        echo "✅ Playwright E2Eテスト: 合格"
+        echo "🎯 UI動作の自動検証が完了しました"
+    fi
 else
     echo "❌ 自動実動作テスト: 不合格"
     FUNCTIONAL_TEST_RESULT="FAIL"
@@ -482,6 +723,13 @@ else
 ## 詳細レポート
 workspace/$(./scripts/get-project-id.sh)/functional_test_report.md
 
+## Playwright E2Eテストの推奨
+より詳細なUI動作確認のため、Playwright E2Eテストの導入を推奨します：
+\`\`\`bash
+npm install -D @playwright/test
+npx playwright install
+\`\`\`
+
 基本的な動作ができるまで修正してください。
 修正完了後、再度完了報告をお願いします。"
 
@@ -493,7 +741,7 @@ fi
 echo "✅ 実動作テスト合格 - 詳細品質チェックを続行します"
 ```
 
-### 6. 手動UI確認指示
+### 7. 手動UI確認指示
 ```bash
 # 手動確認チェックリスト作成
 cp templates/functional-test-checklist.md workspace/$(./scripts/get-project-id.sh)/
@@ -507,7 +755,7 @@ echo "⚠️ 重要: 実際にブラウザでアプリケーションを操作�
 echo "   ボタンクリック・フォーム入力・エラー表示を確認すること"
 ```
 
-### 7. 統合品質チェック実行
+### 8. 統合品質チェック実行
 ```bash
 # 実動作確認が合格した場合のみ、従来の品質チェックも実行
 if [ "$FUNCTIONAL_TEST_RESULT" = "PASS" ]; then
@@ -538,6 +786,7 @@ fi
 - [ ] **ボタンクリックでエラーが出ない**
 - [ ] **フォーム入力が正常に動作する**
 - [ ] **コンソールエラーが出ない**
+- [ ] **Playwright E2Eテストが合格する（導入済みの場合）**
 
 ⚠️ **上記が1つでも失敗した場合は即座に不合格・修正指示**
 
@@ -605,6 +854,12 @@ fi
 - テストカバレッジ: [X]% (目標: 90%以上)
 - テストケース数: [Y]個
 - 実行時間: [Z]秒
+
+### 🎭 E2Eテスト品質
+- Playwright E2Eテスト: [結果]
+- UI自動テストカバレッジ: [カバレッジ]
+- クロスブラウザテスト: Chrome/Firefox/Safari
+- レスポンシブテスト: モバイル/タブレット/デスクトップ
 
 ### 🔍 コード品質
 - Lintエラー: 0件

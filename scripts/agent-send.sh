@@ -68,10 +68,22 @@ get_project_id_from_window() {
     echo "${current_window}_$(date +%Y%m%d_%H%M%S)"
 }
 
-# プロジェクトIDの取得（シンプル化：ウィンドウ名ベース）
+# プロジェクトIDの取得（get-project-id.shを使用）
 get_current_project_id() {
-    local current_window=$(get_current_window)
+    # スクリプトディレクトリを取得
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     
+    # get-project-id.shスクリプトを実行
+    if [ -f "$script_dir/get-project-id.sh" ]; then
+        local project_id=$("$script_dir/get-project-id.sh" 2>/dev/null)
+        if [ -n "$project_id" ]; then
+            echo "$project_id"
+            return 0
+        fi
+    fi
+    
+    # フォールバック: 現在のウィンドウ名を使用
+    local current_window=$(get_current_window)
     if [ -z "$current_window" ]; then
         echo ""
         return 1
@@ -84,8 +96,8 @@ get_current_project_id() {
         return 0
     fi
     
-    # 新規プロジェクトIDを生成（必要時のみ）
-    echo "${current_window}_$(date +%Y%m%d_%H%M%S)"
+    echo ""
+    return 1
 }
 
 # プロジェクトディレクトリの確保（ファイル管理なし）
@@ -156,11 +168,11 @@ get_agent_target() {
         # 現在のウィンドウを使用（シンプル化）
         window_name=$(get_current_window)
         if [ -z "$window_name" ]; then
-            echo "❌ エラー: ウィンドウ名を取得できません。"
-            echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project-1"
-            echo "利用可能ウィンドウ:"
+            echo "❌ エラー: ウィンドウ名を取得できません。" >&2
+            echo "使用例: ./scripts/agent-send.sh $agent \"メッセージ\" project-1" >&2
+            echo "利用可能ウィンドウ:" >&2
             if tmux has-session -t claude-qa-system 2>/dev/null; then
-                tmux list-windows -t claude-qa-system -F "  #{window_name}"
+                tmux list-windows -t claude-qa-system -F "  #{window_name}" >&2
             fi
             return 1
         fi
@@ -175,29 +187,52 @@ get_agent_target() {
     if [ "$agent" = "auto" ] || [ -z "$agent" ]; then
         agent=$(get_target_agent)
         if [ -z "$agent" ]; then
-            echo "❌ エラー: 相手エージェントを自動検出できません。明示的に指定してください。"
+            echo "❌ エラー: 相手エージェントを自動検出できません。明示的に指定してください。" >&2
             return 1
         fi
         echo "🤖 自動検出: 相手エージェント '$agent' を選択しました" >&2
     fi
     
-    # tmuxターゲット構築
-    case "$agent" in
-        "quality-manager") 
-            # 左ペイン（QualityManager）
-            echo "claude-qa-system:${window_name}.0"
-            ;;
-        "developer") 
-            # 右ペイン（Developer）
-            echo "claude-qa-system:${window_name}.1"
-            ;;
-        "human") 
-            echo "human"  # 特別ターゲット（人間への出力）
-            ;;
-        *) 
-            echo "" 
-            ;;
-    esac
+    # 現在と同じウィンドウに送信するように修正
+    # 同一ウィンドウ内での送信の場合、現在のペインから相手ペインを算出
+    if [ -n "$TMUX_PANE" ] && [ "$window_name" = "$(get_current_window)" ]; then
+        local current_pane_index=$(tmux display-message -p '#P')
+        
+        case "$agent" in
+            "quality-manager")
+                # 左ペイン（0）に送信
+                echo "claude-qa-system:${window_name}.0"
+                ;;
+            "developer")
+                # 右ペイン（1）に送信
+                echo "claude-qa-system:${window_name}.1"
+                ;;
+            "human")
+                echo "human"  # 特別ターゲット（人間への出力）
+                ;;
+            *)
+                echo "" 
+                ;;
+        esac
+    else
+        # 別ウィンドウへの送信の場合は従来通り
+        case "$agent" in
+            "quality-manager") 
+                # 左ペイン（QualityManager）
+                echo "claude-qa-system:${window_name}.0"
+                ;;
+            "developer") 
+                # 右ペイン（Developer）
+                echo "claude-qa-system:${window_name}.1"
+                ;;
+            "human") 
+                echo "human"  # 特別ターゲット（人間への出力）
+                ;;
+            *) 
+                echo "" 
+                ;;
+        esac
+    fi
 }
 
 show_usage() {

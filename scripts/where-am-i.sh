@@ -33,8 +33,8 @@ echo "🤝 通信相手: $PARTNER"
 
 echo ""
 echo "💬 メッセージ送信方法:"
-echo "  ./scripts/msg.sh \"[メッセージ]\""
-echo "  ./scripts/send-to-partner.sh \"[詳細メッセージ]\""
+echo "  ./scripts/msg.sh \"[メッセージ]\"  # パートナーへ簡単送信"
+echo "  ./scripts/agent-send.sh human \"[メッセージ]\"  # 人間へ報告"
 
 # ペイン一覧表示
 echo ""
